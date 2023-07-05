@@ -3,27 +3,32 @@ import tensorflow as tf
 
 # Full implementation of the dynamic algorithm with support for splitting gradients across GPUs
 class HInvFastUpMulti:
-
     def __init__(self, grads, dev, gpus, damp=1e-5):
         self.m, self.d = grads.shape
         self.dev = dev
         self.gpus = gpus
         self.dtype = grads.dtype
-        self.lambd = 1. / damp
+        self.lambd = 1.0 / damp
 
         self.dper = self.d // len(gpus) + 1
         self.grads = []  # matrix $G$ in the paper
         for i in range(len(gpus)):
             start, end = i * self.dper, (i + 1) * self.dper
             self.grads.append(tf.Variable(grads[:, start:end], trainable=False))
-        self.dots = tf.Variable(tf.zeros((self.m, self.m), dtype=self.dtype), trainable=False)  # matrix $GG^T$
+        self.dots = tf.Variable(
+            tf.zeros((self.m, self.m), dtype=self.dtype), trainable=False
+        )  # matrix $GG^T$
         for i in range(len(gpus)):
             self.dots.assign_add(self.grads[i] @ tf.transpose(self.grads[i]))
 
         self.last = 0  # ringbuffer index
         self.giHig = self.lambd * self.dots  # matrix $D$
-        self.denom = tf.Variable(tf.zeros(self.m, dtype=self.dtype), trainable=False)  # $D_ii + m$
-        self.coef = tf.Variable(self.lambd * tf.eye(self.m, dtype=self.dtype), trainable=False)  # matrix $B$
+        self.denom = tf.Variable(
+            tf.zeros(self.m, dtype=self.dtype), trainable=False
+        )  # $D_ii + m$
+        self.coef = tf.Variable(
+            self.lambd * tf.eye(self.m, dtype=self.dtype), trainable=False
+        )  # matrix $B$
         self.setup()
 
     def setup(self):
@@ -72,7 +77,9 @@ class HInvFastUpMulti:
             dots = self.grads_matmul(x)
         giHix = self.lambd * dots
         for i in range(1, self.m):
-            giHix[i:].assign_sub(self.giHig[i - 1, i:] * giHix[i - 1] / self.denom[i - 1])
+            giHix[i:].assign_sub(
+                self.giHig[i - 1, i:] * giHix[i - 1] / self.denom[i - 1]
+            )
         return self.lambd * x - self.matmul_grads((giHix / self.denom) @ self.coef)
 
     def update(self, g):
@@ -94,10 +101,10 @@ class HInvFastUpMulti:
         return res
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     D = 1000
     M = 32
-    dev = '/GPU:0'
+    dev = "/GPU:0"
 
     def dist(x, y):
         return tf.reduce_mean(tf.abs(x - y))
@@ -110,9 +117,22 @@ if __name__ == '__main__':
         hinv1.update(grads[i, :])
     print(dist(hinv1.mul(g), hinv1.mul(g)))
 
-class MFAC(tf.optimizers.Optimizer):
 
-    def __init__(self, lr=1e-3, momentum=0, weight_decay=0, ngrads=1024, damp=1e-5, moddev=None, optdev=None, gpus=[], sparse=False, name="MFAC", **kwargs):
+class MFAC(tf.optimizers.Optimizer):
+    def __init__(
+        self,
+        lr=1e-3,
+        momentum=0,
+        weight_decay=0,
+        ngrads=1024,
+        damp=1e-5,
+        moddev=None,
+        optdev=None,
+        gpus=[],
+        sparse=False,
+        name="MFAC",
+        **kwargs
+    ):
         super(MFAC, self).__init__(name, **kwargs)
         self.momentum = momentum
         self.weight_decay = weight_decay
@@ -141,7 +161,10 @@ class MFAC(tf.optimizers.Optimizer):
             gpus = [self.optdev]
 
         self.hinv = HInvFastUpMulti(
-            tf.zeros((ngrads, tf.size(w)), dtype=tf.float32), dev=self.optdev, gpus=gpus, damp=damp
+            tf.zeros((ngrads, tf.size(w)), dtype=tf.float32),
+            dev=self.optdev,
+            gpus=gpus,
+            damp=damp,
         )
 
     @tf.function
@@ -169,17 +192,17 @@ class MFAC(tf.optimizers.Optimizer):
             expanded = tf.zeros(self.nweights, dtype=var.dtype)
             indices = tf.where(self.mask)
             tmp = tf.scatter_nd(indices, tmp, expanded.shape)
-        
+
         count = 0
         for var in self._var_list:
-            var.assign_add(tmp[count:(count + tf.size(var))], alpha=-self.lr)
+            var.assign_add(tmp[count : (count + tf.size(var))], alpha=-self.lr)
             count += tf.size(var)
-        
+
     def _resource_apply_sparse(self, grad, var):
         raise NotImplementedError("Sparse tensor updates are not supported.")
 
-class HInvSlow:
 
+class HInvSlow:
     def __init__(self, grads, damp=1e-5):
         m, d = grads.shape
         H = tf.linalg.diag(tf.ones([d], dtype=grads.dtype) / damp)
@@ -189,17 +212,18 @@ class HInvSlow:
             Hg = tf.linalg.matvec(H, g)
             outer_product = tf.linalg.outer(Hg, Hg)
             H -= outer_product / (m + tf.tensordot(g, Hg, axes=1))
-            
+
         self.H = H
 
     def mul(self, x):
         return tf.linalg.matvec(self.H, x)
 
+
 # Small test comparing dynamic algorithm results with naive Woodbury implementation
-if __name__ == '__main__':
+if __name__ == "__main__":
     D = 1000
     M = 32
-    DEV = tf.device('/GPU:0')
+    DEV = tf.device("/GPU:0")
 
     def dist(x, y):
         return tf.reduce_mean(tf.abs(x - y))
