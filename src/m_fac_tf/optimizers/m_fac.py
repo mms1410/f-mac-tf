@@ -38,6 +38,8 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.momentum = momentum
         self.m = m
+        self.D = None
+        self.B = None
         self.nesterov = nesterov
         # initialize fifo queue
         self.fifo = deque(maxlen=m)
@@ -74,6 +76,16 @@ class MFAC(tf.keras.optimizers.Optimizer):
         var_key = self._var_key(variable)
         momentum = tf.cast(self.momentum, variable.dtype)
         m = self.momentums[self._index_dict[var_key]]
+
+        if len(self.fifo) == self.m:
+            self.fifo.append(gradient)
+            fifo = self._fifo_to_grads(self.fifo)
+            self.D, self.B = self._setup_matrices(grads=fifo)
+            gradient = self._compute_InvMatVec(grads=fifo, x=gradient, D=self.D, B=self.B)
+            print("scaled grads: ")
+        else:
+            self.fifo.append(gradient)
+            print("grads: ")
 
         # TODO(b/204321487): Add nesterov acceleration.
         if isinstance(gradient, tf.IndexedSlices):
@@ -115,52 +127,6 @@ class MFAC(tf.keras.optimizers.Optimizer):
             }
         )
         return config
-
-    def compute_gradients(self, loss, var_list, tape=None):
-        """Compute gradients of loss on trainable variables.
-
-        Args:
-          loss: `Tensor` or callable. If a callable, `loss` should take no
-            arguments and return the value to minimize.
-          var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`, or a callable returning the list or tuple of `Variable`
-            objects. Use callable when the variable list would otherwise be
-            incomplete before `minimize` since the variables are created at the
-            first time `loss` is called.
-          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
-            `Tensor`, the tape that computed the `loss` must be provided.
-
-        Returns:
-          A list of (gradient, variable) pairs. Variable is always present, but
-          gradient can be `None`.
-        """
-        if not callable(loss) and tape is None:
-            raise ValueError(
-                "`tape` is required when a `Tensor` loss is passed. "
-                f"Received: loss={loss}, tape={tape}."
-            )
-        if tape is None:
-            tape = tf.GradientTape()
-        if callable(loss):
-            with tape:
-                if not callable(var_list):
-                    tape.watch(var_list)
-                loss = loss()
-                if callable(var_list):
-                    var_list = var_list()
-
-        grads = tape.gradient(loss, var_list)
-
-        if len(self.fifo) == self.m:
-            self.fifo.append(grads)
-            fifo = self._fifo_to_grads(self.fifo)
-            d, b = self._setup_matrices(fifo, grads)
-            scaled_grads = self._compute_InvMatVec(fifo, grads, d, b)
-            return list(zip(scaled_grads, var_list))
-        else:
-            self.fifo.append(grads)
-            return list(zip(grads, var_list))
-
 
     def _setup_matrices(self, grads, damp=1e-8, dtype="float64"):
         """
