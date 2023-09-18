@@ -4,119 +4,165 @@ from collections import deque
 import abc
 
 
-# ToDo:
-#   (Base-)Optimizer import from tensorflow
-#   apply_gradients:
-#       possible multiple grads and vars -> individual fifo queues?
-#   proper handling of dtypes?
-#   distributed training?
+class MFAC(tf.keras.optimizers.Optimizer):
 
-
-class Mfac(tf.keras.optimizers.Optimizer):
-    """
-
-    """
-
-    @abc.abstractmethod
-    def __init__(self, m, damp = 1e-8, learning_rate=0.001, name="mfac", **kwargs):
-        """Initialize M-FAC optimizer.
-
-        Args:
-            m: integer for last m gradients to use for second order approximation.
-            learning_rate: float of learning rate
-            name: string of optimizes name.
-            dtype: datatype used in tensors.
-
-
-        """
-        super(Mfac, self).__init__(name, **kwargs)
-        self.learning_rate = learning_rate
-        self.m = m
-        self.damp = damp
-        self.gradient_fifo = deque(cpacity=m)
-        self.scaled_gradient = None
-        self.D = None
-        self.B = None
-
-    @abc.abstractmethod
-    def apply_gradients(
+    def __init__(
             self,
-            grads_and_vars,
-            name=None,
-            skip_gradients_aggregation=False,
-            **kwargs,
+            learning_rate=0.01,
+            momentum=0.0,
+            m=5,
+            nesterov=False,
+            weight_decay=None,
+            clipnorm=None,
+            clipvalue=None,
+            global_clipnorm=None,
+            use_ema=False,
+            ema_momentum=0.99,
+            ema_overwrite_frequency=None,
+            jit_compile=True,
+            name="MFAC",
+            **kwargs
     ):
-        """Apply gradients to variables.
+        super().__init__(
+            name=name,
+            weight_decay=weight_decay,
+            clipnorm=clipnorm,
+            clipvalue=clipvalue,
+            global_clipnorm=global_clipnorm,
+            use_ema=use_ema,
+            ema_momentum=ema_momentum,
+            ema_overwrite_frequency=ema_overwrite_frequency,
+            jit_compile=jit_compile,
+            **kwargs
+        )
+        self._learning_rate = self._build_learning_rate(learning_rate)
+        self.momentum = momentum
+        self.m = m
+        self.nesterov = nesterov
+        # initialize fifo queue
+        self.fifo = deque(maxlen=m)
+        if isinstance(momentum, (int, float)) and (
+                momentum < 0 or momentum > 1
+        ):
+            raise ValueError("`momentum` must be between [0, 1].")
+
+    def build(self, var_list):
+        """Initialize optimizer variables.
+
+        SGD optimizer has one variable `momentums`, only set if `self.momentum`
+        is not 0.
 
         Args:
-          grads_and_vars: List of `(gradient, variable)` pairs.
-          name: string, defaults to None. The name of the namescope to
-            use when creating variables. If None, `self.name` will be used.
-          skip_gradients_aggregation: If true, gradients aggregation will not be
-            performed inside optimizer. Usually this arg is set to True when you
-            write custom code aggregating gradients outside the optimizer.
-          **kwargs: keyword arguments only used for backward compatibility.
+          var_list: list of model variables to build SGD variables on.
+        """
+        super().build(var_list)
+        if hasattr(self, "_built") and self._built:
+            return
+        self.momentums = []
+        for var in var_list:
+            self.momentums.append(
+                self.add_variable_from_reference(
+                    model_variable=var, variable_name="m"
+                )
+            )
+        self._built = True
 
-        Returns:
-          A `tf.Variable`, representing the current iteration.
-          """
-        pass
+    def update_step(self, gradient, variable):
+        """Update step given gradient and the associated model variable."""
+        lr = tf.cast(self.learning_rate, variable.dtype)
+        m = None
+        var_key = self._var_key(variable)
+        momentum = tf.cast(self.momentum, variable.dtype)
+        m = self.momentums[self._index_dict[var_key]]
 
-    @abc.abstractmethod
-    def minimize(self, loss, var_list, tape=None):
-        """Minimize `loss` by updating `var_list`.
+        # TODO(b/204321487): Add nesterov acceleration.
+        if isinstance(gradient, tf.IndexedSlices):
+            # Sparse gradients.
+            add_value = tf.IndexedSlices(
+                -gradient.values * lr, gradient.indices
+            )
+            if m is not None:
+                m.assign(m * momentum)
+                m.scatter_add(add_value)
+                if self.nesterov:
+                    variable.scatter_add(add_value)
+                    variable.assign_add(m * momentum)
+                else:
+                    variable.assign_add(m)
+            else:
+                variable.scatter_add(add_value)
+        else:
+            # Dense gradients
+            if m is not None:
+                m.assign(-gradient * lr + m * momentum)
+                if self.nesterov:
+                    variable.assign_add(-gradient * lr + m * momentum)
+                else:
+                    variable.assign_add(m)
+            else:
+                variable.assign_add(-gradient * lr)
 
-        This method simply computes gradient using `tf.GradientTape` and calls
-        `apply_gradients()`. If you want to process the gradient before applying
-        then call `tf.GradientTape` and `apply_gradients()` explicitly instead
-        of using this function.
+    def get_config(self):
+        config = super().get_config()
+
+        config.update(
+            {
+                "learning_rate": self._serialize_hyperparameter(
+                    self._learning_rate
+                ),
+                "momentum": self.momentum,
+                "nesterov": self.nesterov,
+            }
+        )
+        return config
+
+    def compute_gradients(self, loss, var_list, tape=None):
+        """Compute gradients of loss on trainable variables.
 
         Args:
           loss: `Tensor` or callable. If a callable, `loss` should take no
             arguments and return the value to minimize.
           var_list: list or tuple of `Variable` objects to update to minimize
             `loss`, or a callable returning the list or tuple of `Variable`
-            objects.  Use callable when the variable list would otherwise be
+            objects. Use callable when the variable list would otherwise be
             incomplete before `minimize` since the variables are created at the
             first time `loss` is called.
-          tape: (Optional) `tf.GradientTape`.
+          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
+            `Tensor`, the tape that computed the `loss` must be provided.
 
         Returns:
-          None
+          A list of (gradient, variable) pairs. Variable is always present, but
+          gradient can be `None`.
         """
-        # compute normal gradient
-        grads_and_vars = self.compute_gradients(loss, var_list, tape)
-        # if there are enough m past gradients adjust computed normal gradient with past m gradients.
-        if len(self.gradient_fifo) < self.gradient_fifo.maxlen:
-            # ToDo: add (normal) gradient to fifo
-        elif len(self.gradient_fifo) == self.gradient_fifo.maxlen:
-            self.D, self.B = self._setup_matrices(self._fifo_to_grads(self.gradient_fifo))
-            scaled_gradient = self._compute_InvMatVec(gradient, self.D, self.B, self.damp)
-            self.gradient_fifo.append(scaled_gradient)
-            # ToDo: replace gradient with scaled_gradient in grads_and_vars
+        if not callable(loss) and tape is None:
+            raise ValueError(
+                "`tape` is required when a `Tensor` loss is passed. "
+                f"Received: loss={loss}, tape={tape}."
+            )
+        if tape is None:
+            tape = tf.GradientTape()
+        if callable(loss):
+            with tape:
+                if not callable(var_list):
+                    tape.watch(var_list)
+                loss = loss()
+                if callable(var_list):
+                    var_list = var_list()
+
+        grads = tape.gradient(loss, var_list)
+
+        if len(self.fifo) == self.m:
+            self.fifo.append(grads)
+            fifo = self._fifo_to_grads(self.fifo)
+            d, b = self._setup_matrices(fifo, grads)
+            scaled_grads = self._compute_InvMatVec(fifo, grads, d, b)
+            return list(zip(scaled_grads, var_list))
         else:
-            scaled_gradient = self._compute_InvMatVec(gradient, self.D, self.B, self.damp)
-            self.gradient_fifo.append(scaled_gradient)
-            # ToDo: replace gradient with scaled_gradient in grads_and_vars
-        self.apply_gradients(grads_and_vars)
+            self.fifo.append(grads)
+            return list(zip(grads, var_list))
 
-    @abc.abstractmethod
-    def update_step(self, gradient, variable):
-        """Function to update variable value based on given gradients.
 
-        This method must be implemented in customized optimizers.
-
-        Args:
-          gradient: backpropagated gradient of the given variable.
-          variable: variable whose value needs to be updated.
-
-        Returns:
-          An `Operation` that applies the specified gradients.
-
-        """
-        # since in minimize
-
-    def _setup_matrices(grads, damp=1e-8, dtype="float64"):
+    def _setup_matrices(self, grads, damp=1e-8, dtype="float64"):
         """
         Initialize D and B (Algorithm1)
         """
@@ -141,7 +187,7 @@ class Mfac(tf.keras.optimizers.Optimizer):
             B[idx, :idx].assign(to_assign)
         return D, B
 
-    def _compute_InvMatVec(grads, x, D, B, damp=1e-8, dtype="float64"):
+    def _compute_InvMatVec(self, grads, x, D, B, damp=1e-8, dtype="float64"):
         """
         Compute \hat{F_{m}}\bm{x} for precomputed D and B
         """
@@ -161,7 +207,7 @@ class Mfac(tf.keras.optimizers.Optimizer):
         result = a - b
         return result
 
-    def _fifo_to_grads(fifo):
+    def _fifo_to_grads(self, fifo):
         """Fifo queue to gradient tensor"""
         grads = []
         for grad in fifo:
