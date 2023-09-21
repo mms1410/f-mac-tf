@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import tensorflow as tf
-import pandas as pd
+import numpy as np
+import sys
 
 class TrainingCallback(tf.keras.callbacks.Callback):
     """
     """
     def on_epoch_end(self, epoch, logs=None):
-        weights = [w for w in self.model.trainable_weights if 'dense' in w.name and 'bias' in w.name]
-        loss = self.model.total_loss
-        optimizer = self.model.optimizer
-        gradients = optimizer.get_gradients(loss, weights)
+        model = self.model
+        logs = logs or {}
+        print("\n TESTCOUNTER: ", model.optimizer.test_counter)
+        print("\n GRAD:        ", model.optimizer.base_grad)
+        print("\n               ", type(model.optimizer.base_grad))
+        print("\n               ", model.optimizer.base_grad.shape)
+
 
 class ModelInspectionCallback(tf.keras.callbacks.Callback):
     """
@@ -20,4 +24,5 @@ class ModelInspectionCallback(tf.keras.callbacks.Callback):
         model = self.model
         model_dict = model.__dict__
         print(model.optimizer)
+
 
