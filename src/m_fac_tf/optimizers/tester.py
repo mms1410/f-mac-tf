@@ -71,7 +71,7 @@ class TestOptimizer(tf.keras.optimizers.Optimizer):
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
         self.base_grad = gradient
-        # self.grad_fifo.append(gradient)
+        self.grad_fifo.append(gradient)
         self.test_counter += 1
         if self.grad_fifo.counter < self.m:
             self.grad_fifo.append(gradient)
