@@ -2,44 +2,51 @@
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import tensorflow_hub as hub 
+import tensorflow_hub as hub
+
 from src.m_fac_tf.models import build_resnet_20, build_resnet_32
 
 
-def load_model_and_dataset(name: str):
+def load_dataset(name: str):
+    """
+    """
+    if name.lower() == "cifar10":
+        (train_dataset, test_dataset) = tfds.load(
+            "cifar10",
+            split=["train", "test"],
+            as_supervised=True)
+    elif name.lower() == "cifar100":
+        (train_dataset, test_dataset)  = tfds.load(
+            "cifar100",
+            split=["train", "test"],
+            as_supervised=True)
+    elif name.lower() == "squadv2":
+        pass
+    elif name.lower() == "glue":
+        pass
+    else:
+        pass  # ToDo: raise exception
+
+
+def load_model(name: str):
     """Loads model and data"""
 
     if name.lower() == "resnet50":
         input_shape = (224, 224, 3)
         num_classes = 1000 
         model = tf.keras.applications.ResNet50(
-            include_top=True,
-            weights="imagenet",
-            input_shape=input_shape,
-            classes=num_classes)
-        (train_dataset, test_dataset), dataset_info = tfds.load(
-            "cifar10",
-            split=["train", "test"],
-            as_supervised=True,
-            with_info=True)
+             include_top=True,
+             weights="imagenet",
+             input_shape=input_shape,
+             classes=num_classes)
     elif name.lower() == "resnet20":
         input_shape = (32, 32, 3)
         num_classes = 10
         model = build_resnet_20(input_shape, num_classes)
-        (train_dataset, test_dataset), dataset_info = tfds.load(
-            "cifar10",
-            split=["train", "test"],
-            as_supervised=True,
-            with_info=True)
     elif name.lower() == "resnet32":
         input_shape = (32, 32, 3)
         num_classes = 10
         model = build_resnet_32(input_shape, num_classes)
-        (train_dataset, test_dataset), dataset_info = tfds.load(
-            "cifar10",
-            split=["train", "test"],
-            as_supervised=True,
-            with_info=True)
     elif name.lower() == "inceptionv3":
         input_shape = (224, 224, 3)
         num_classes = 1000
@@ -55,27 +62,16 @@ def load_model_and_dataset(name: str):
     elif name.lower() == "mobilenetv1":
         input_shape = (224, 224, 3)
         num_classes = 100
-        (train_dataset, test_dataset), _  = tfds.load(
-            "cifar100",
-            split=["train", "test"],
-            as_supervised=True,
-            with_info=True
-        )
+        
         model = tf.keras.applications.mobilenet.MobileNet(
             input_shape=input_shape,
             classes=num_classes)
     elif name.lower() == "imagenet":
         input_shape = (224, 224, 3)
         num_classes = 100
-        (train_dataset, test_dataset), _  = tfds.load(
-            "cifar100",
-            split=["train", "test"],
-            as_supervised=True,
-            with_info=True
-        )
         model_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_130_224/classification/4"
         model = tf.keras.Sequential([hub.KerasLayer(model_url,
                                                     output_shape=[1000])])
     else:
         pass  # ToDo: Raise Exception
-    return model, train_dataset, test_dataset
+    return model
