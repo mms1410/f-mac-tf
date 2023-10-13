@@ -1,8 +1,0 @@
-cff-version: 1.0.2
-message: "If you use this software, please cite it as below."
-title: "f_mac_tf"
-authors:
-  - name: "Sven Maurice Morlock, Adrian Glos"
-version: 0.0.1-dev
-doi:
-url: "https://github.com//f-mac-tf"
