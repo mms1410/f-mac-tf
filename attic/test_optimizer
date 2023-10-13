@@ -2,7 +2,7 @@ import tensorflow as tf
 from utils.utils import MatrixFifo, deflatten
 
 class TestOptimizer(tf.keras.optimizers.Adadelta):
-    def __init__(self, m=20, **kwargs):
+    def __init__(self, m=3, **kwargs):
         super(TestOptimizer, self).__init__()
         self.m = 3
         self.D = None

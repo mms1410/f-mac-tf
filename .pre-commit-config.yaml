@@ -1,0 +1,41 @@
+repos:
+  - repo: local
+    hooks:
+      - id: run-tox flake8
+        name: Run tox tests flake8
+        entry: tox run -e flake8
+        language: system
+        pass_filenames: false
+        types: [python]
+  - repo: local
+    hooks:
+      - id: run-tox pyroma
+        name: Run tox tests pyroma
+        entry: tox run -e pyroma
+        language: system
+        pass_filenames: false
+        types: [python]
+  - repo: local
+    hooks:
+      - id: run-tox mypy
+        name: Run tox tests MyPy
+        entry: tox run -e mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+  - repo: local
+    hooks:
+      - id: run-tox docstring-coverage
+        name: Run tox tests docstring coverage
+        entry: tox run -e docstr-coverage
+        language: system
+        pass_filenames: false
+        types: [python]
+  - repo: local
+    hooks:
+      - id: run-tox pytest
+        name: tox test with PyTest
+        entry: tox run -e py
+        language: system
+        pass_filenames: false
+        types: [python]

@@ -1,28 +1,81 @@
-# -*- coding: utf-8 -*-
-"""Download datasets for benchmarking in dedicated data folder"""
+"""Function to load dataset and model."""
 
-import os
-from os.path import dirname as odir
 import tensorflow as tf
-
-PROJECT_ROOT = __file__
-PROJECT_ROOT = odir(odir(odir(odir(PROJECT_ROOT))))
-
-data_folder = os.path.join(PROJECT_ROOT, "data")
+import tensorflow_datasets as tfds
+import tensorflow_hub as hub 
+from src.m_fac_tf.models import build_resnet_20, build_resnet_32
 
 
-def check_data_folder(path_folder: str = data_folder) -> bool:
-    """ Check existence of data folder"""
-    if os.path.isdir(path_folder):
-        return True
+def load_model_and_dataset(name:str):
+    """Loads model and data"""
+
+    if name.lower() == "resnet50":
+        input_shape = (224, 224, 3)
+        num_classes = 1000 
+        model = tf.keras.applications.ResNet50(
+            include_top=True,
+            weights="imagenet",
+            input_shape=input_shape,
+            classes=num_classes)
+        (train_dataset, test_dataset), dataset_info = tfds.load(
+            "cifar10",
+            split=["train", "test"],
+            as_supervised=True,
+            with_info=True)
+    elif name.lower() == "resnet20":
+        input_shape = (32, 32, 3)
+        num_classes = 10
+        model = build_resnet_20(input_shape, num_classes)
+        (train_dataset, test_dataset), dataset_info = tfds.load(
+            "cifar10",
+            split=["train", "test"],
+            as_supervised=True,
+            with_info=True)
+    elif name.lower() == "resnet32":
+        input_shape = (32, 32, 3)
+        num_classes = 10
+        model = build_resnet_32(input_shape, num_classes)
+        (train_dataset, test_dataset), dataset_info = tfds.load(
+            "cifar10",
+            split=["train", "test"],
+            as_supervised=True,
+            with_info=True)
+    elif name.lower() == "inceptionv3":
+        input_shape = (224, 224, 3)
+        num_classes = 1000
+        model = tf.keras.applications.inception_v3.InceptionV3(
+            include_top=True,
+            weights="imagenet",
+            input_tensor=None,
+            input_shape=None,
+            pooling=None,
+            classes=1000,
+            classifier_activation="softmax"
+            )
+    elif name.lower() == "mobilenetv1":
+        input_shape = (224, 224, 3)
+        num_classes = 100
+        (train_dataset, test_dataset), dataset_info  = tfds.load(
+            "cifar100",
+            split=["train", "test"],
+            as_supervised=True,
+            with_info=True
+        )
+        model = tf.keras.applications.mobilenet.MobileNet(input_shape=input_shape,
+                                                          classes=num_classes)
+    elif name.lower() == "imagenet":
+        input_shape = (224, 224, 3)
+        num_classes = 100
+        (train_dataset, test_dataset), dataset_info  = tfds.load(
+            "cifar100",
+            split=["train", "test"],
+            as_supervised=True,
+            with_info=True
+        )
+        model_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_130_224/classification/4"
+        model = tf.keras.Sequential([
+        hub.KerasLayer(model_url, output_shape=[1000])
+        ])
+
     else:
-        return False
-
-
-def check_cifar_10(path_folder: str = data_folder) -> bool:
-    """ Check whether CIFAR_10 already in data folder"""
-
-
-if __name__ == "__main__":
-    print("datadir: ", data_folder)
-    tf.keras.datasets.cifar10.load_data()
+        pass  # ToDo: Raise Exception
