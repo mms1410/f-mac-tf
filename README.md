@@ -14,7 +14,6 @@
     </a>
     <a href="https://github.com//f-mac-tf/blob/main/LICENSE">
         <img alt="PyPI - License" src="https://img.shields.io/pypi/l/f_mac_tf" />
-
     </a>  
     <a href="https://github.com/cthoyt/cookiecutter-python-package">
         <img alt="Cookiecutter template from @cthoyt" src="https://img.shields.io/badge/Cookiecutter-snekpack-blue" /> 
