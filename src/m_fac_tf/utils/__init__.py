@@ -1,1 +1,1 @@
-# -*- coding: utf-8 -*-
+"""Module for helper functions."""

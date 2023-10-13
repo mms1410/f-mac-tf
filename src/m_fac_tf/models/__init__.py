@@ -1,1 +1,1 @@
-# -*- coding: utf-8 -*-
+"""Module for models to be used."""

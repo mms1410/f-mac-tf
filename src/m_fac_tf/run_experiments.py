@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime
 import tensorflow as tf
 from utils.utils import ModelInspectionCallback
