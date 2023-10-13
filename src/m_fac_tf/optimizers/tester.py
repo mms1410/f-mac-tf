@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils.utils import MatrixFifo, deflatten
+from src.m_fac_tf.utils.helper_functions import MatrixFifo, deflatten
 
 class TestOptimizer(tf.keras.optimizers.Adadelta):
     def __init__(self, m=20, **kwargs):

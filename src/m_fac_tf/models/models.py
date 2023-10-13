@@ -1,8 +1,10 @@
 """Model builder."""
 import tensorflow as tf
+from typing import Tuple
+import keras
 
 
-def residual_block(x, filters):
+def residual_block(x:tf.keras.layers, filters:int):
     # Define a single residual block
     shortcut = x
     x = tf.keras.layers.Conv2D(filters, (3, 3), padding='same')(x)
@@ -41,7 +43,18 @@ def build_resnet_20(input_shape, num_classes):
 
     return model
 
-def build_resnet_32(input_shape, num_classes):
+def build_resnet_32(input_shape: Tuple[(int, int, int)], num_classes: int) -> keras.src.engine.functional.Functional:  # noqa E501
+    """Build Resnet 32 model.
+
+    Build a renet32 model based on the desired input shape and classes.
+
+    Args:
+        input_shape: Tuple of form (int, int, int).
+        num_classes: integer number.
+
+    Returns:
+        keras model
+    """
     # Define the input layer
     input_layer = tf.keras.layers.Input(shape=input_shape)
 
@@ -64,3 +77,10 @@ def build_resnet_32(input_shape, num_classes):
     model = tf.keras.Model(inputs=input_layer, outputs=x, name='resnet32')
 
     return model
+
+
+if __name__ == "__main__":
+    input_shape = (32, 32, 3)
+    num_classes = 10
+    model = build_resnet_32(input_shape, num_classes)
+    print(type(model))

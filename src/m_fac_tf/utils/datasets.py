@@ -6,7 +6,7 @@ import tensorflow_hub as hub
 from src.m_fac_tf.models import build_resnet_20, build_resnet_32
 
 
-def load_model_and_dataset(name:str):
+def load_model_and_dataset(name: str):
     """Loads model and data"""
 
     if name.lower() == "resnet50":
@@ -55,27 +55,27 @@ def load_model_and_dataset(name:str):
     elif name.lower() == "mobilenetv1":
         input_shape = (224, 224, 3)
         num_classes = 100
-        (train_dataset, test_dataset), dataset_info  = tfds.load(
+        (train_dataset, test_dataset), _  = tfds.load(
             "cifar100",
             split=["train", "test"],
             as_supervised=True,
             with_info=True
         )
-        model = tf.keras.applications.mobilenet.MobileNet(input_shape=input_shape,
-                                                          classes=num_classes)
+        model = tf.keras.applications.mobilenet.MobileNet(
+            input_shape=input_shape,
+            classes=num_classes)
     elif name.lower() == "imagenet":
         input_shape = (224, 224, 3)
         num_classes = 100
-        (train_dataset, test_dataset), dataset_info  = tfds.load(
+        (train_dataset, test_dataset), _  = tfds.load(
             "cifar100",
             split=["train", "test"],
             as_supervised=True,
             with_info=True
         )
         model_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_130_224/classification/4"
-        model = tf.keras.Sequential([
-        hub.KerasLayer(model_url, output_shape=[1000])
-        ])
-
+        model = tf.keras.Sequential([hub.KerasLayer(model_url,
+                                                    output_shape=[1000])])
     else:
         pass  # ToDo: Raise Exception
+    return model, train_dataset, test_dataset

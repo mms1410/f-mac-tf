@@ -1,8 +1,8 @@
 from datetime import datetime
 import tensorflow as tf
-from utils.utils import ModelInspectionCallback
+from src.m_fac_tf.utils.monitor_training import ModelInspectionCallback
 from optimizers.tester import TestOptimizer
-from utils.utils import get_simple_raw_model
+from src.m_fac_tf.utils.helper_functions import get_simple_raw_model
 
 
 if __name__ == "__main__":
