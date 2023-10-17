@@ -1,0 +1,16 @@
+from src.m_fac_tf.utils.datasets import load_model, load_dataset
+import hydra
+import mlflow
+from omegaconf import DictConfig
+
+
+@hydra.main(version_base="1.1", config_path="../conf/", config_name="mfac_experiment")  # noqa E501
+def run_experiments(cfg: DictConfig):
+    """Run experients"""
+    # print(cfg.experiments)
+    for experiment in cfg.experiments:
+        print(experiment)
+        
+
+if __name__ == "__main__":
+    run_experiments()
