@@ -1,2 +1,39 @@
-epochs: 50
-
+experiments:
+  - name: initial-test
+    model: WideResNet40
+    dataset: cifar10
+    epochs: 50
+    optimizer:
+#      mfac:
+#        params:
+#          learning_rate: 0.001
+#          m: [5, 10, 20]
+#        batch_size: 1000
+      sgd:
+        params:
+          learning_rate: 0.001
+          momentum: 0.0 # , 0.01
+        batch_size: 128
+      adam:
+        params:
+          learning_rate: 0.01
+        batch_size: 128
+  - name: second-order-comparison
+    model: ResNet20 #[ResNet20, resnet32]
+    dataset: cifar10
+    optimizer:
+#      mfac:
+#        params:
+#          learning_rate: 0.001
+#          m: [5, 10, 20]
+#        batch_size: 1000
+      adam:
+        params:
+          learning_rate: 0.001
+        batch_size: 128
+      sgd:
+        params:
+          learning_rate: 0.001
+          momentum: 0.01
+        batch_size: 128
+# add KFAC, GGT, AdaHessian

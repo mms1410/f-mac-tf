@@ -1,7 +1,10 @@
 """Helper functions used in models and optimizers module."""
-import tensorflow as tf
-from typing import Tuple, List
+from typing import List, Tuple
+
 import pandas as pd
+import tensorflow as tf
+
+# TODO Reihenweise
 
 
 def get_simple_raw_model(input_shape, target_size):
@@ -83,19 +86,85 @@ class MatrixFifo:
             self.values[:,:-1].assign(tmp[:,1:])
         self.counter += 1
 
+class RowWiseMatrixFifo:
+    """Row-wise Matrix fifo queue.
 
-def deflatten(flattened_grads: tf.Variable, shapes_grads:list[tf.shape]) -> tuple[tf.Variable]:
-    """Deflatten a tensorflow vector."""
+    The top row contains the newest vector (row-wise).
+    The matrix is initializes with zeros and when appended the firt m-1 rows
+    move rown row down and the row on top is replaced by vector.
+    """
+    def __init__(self, m):
+        self.values = None
+        self.nrow = m
+        self.counter = 0  # tf.Variable(0, dtype=tf.int32)
+    
+    def append(self, vector: tf.Tensor):
+        """Append vector to fifoMatrix
+
+        Append vector to first row and update all other rows, 
+        where row i contains values of former row i-1.
+        The first appended vector determines ncol.
+
+        Args:
+            vector: tf.Vector of gradients
+        """
+        if self.values is None:
+            # init zero matrix
+            # this is done here so the shape of vector determines ncol
+            # and is not set at init.
+            self.values = tf.Variable(tf.zeros(shape=[self.nrow, vector.shape[0]]))  # noqa E501
+        
+        # first m-1 rows are part of updated fifo matrix.
+        maintained_values = tf.identity(self.values[:self.nrow - 1, :])
+        # move row i is now former row i - 1.
+        self.values[1:, :].assign(maintained_values)
+        # update firt row with new vector.
+        self.values[0, :].assign(vector)
+        # increment counter
+        self. counter += 1  # self.counter.assign_add(1)
+
+    def reset(self):
+        self.counter = 0
+        self.values = None
+
+def deflatten(flattened_grads: tf.Variable, shapes_grads: list[tf.shape]) -> tuple[tf.Variable]:  # noqa E501
+    """Deflatten a tensorflow vector.
+    
+    Args:
+        flattened_grads: flattened gradients.
+        shape_grads: shape in which to reshape
+    
+    Return:
+        tuple of tf.Variables
+    """
     shapes_total = list(map(lambda x: tf.reduce_prod(x), shapes_grads))
-    intermediate = tf.split(flattened_grads, shapes_total, axis = 0)
-    deflattened = [tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)]
+    intermediate = tf.split(flattened_grads, shapes_total, axis=0)   # noqa E501
+    deflattened = [tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)]  # noqa E501
     return deflattened
 
 
 if __name__ == "__main__":
-    gradients_list = [tf.Variable(tf.random.normal((5, 2, 19))), tf.Variable(tf.random.normal((20,)))]
-    flatten_grads = list(map(lambda x: tf.reshape(x, [-1]), gradients_list))
-    flatten_grads = tf.concat(flatten_grads, axis = 0).numpy()
-    shapes_grads = list(map(lambda x: x.shape, gradients_list))
-    deflattened = deflatten(flatten_grads, shapes_grads)
-    print([var.shape for var in deflattened])
+    m = 5
+    d = 8
+    vec1 = tf.constant(1, shape=(1, d), dtype=tf.float32)
+    vec2 = tf.constant(2, shape=(1, d), dtype=tf.float32)
+    vec3 = tf.constant(3, shape=(1, d), dtype=tf.float32)
+    vec4 = tf.constant(4, shape=(1, d), dtype=tf.float32)
+    vec5 = tf.constant(5, shape=(1, d), dtype=tf.float32)
+    vec6 = tf.constant(6, shape=(1, d), dtype=tf.float32)
+    vec7 = tf.constant(7, shape=(1, d), dtype=tf.float32)
+
+    mat = RowWiseMatrixFifo(m=m)
+    mat.append(vec1)
+    mat.append(vec2)
+    mat.append(vec3)
+    mat.append(vec4)
+    mat.append(vec5)
+    print(mat.values)
+    mat.append(vec6)
+    print(mat.values)
+    print(mat.counter)
+    mat.counter = 0
+    mat.values = None
+    mat.append(vec7)
+    print(mat.values)

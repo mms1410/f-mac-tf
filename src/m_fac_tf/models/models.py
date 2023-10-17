@@ -1,10 +1,12 @@
 """Model builder."""
 import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Add, GlobalAveragePooling2D, Dense
+from tensorflow.keras.models import Model
 from typing import Tuple
 import keras
 
 
-def residual_block(x:tf.keras.layers, filters:int):
+def residual_block(x:tf.keras.layers, filters: int):
     # Define a single residual block
     shortcut = x
     x = tf.keras.layers.Conv2D(filters, (3, 3), padding='same')(x)
@@ -18,6 +20,7 @@ def residual_block(x:tf.keras.layers, filters:int):
     x = tf.keras.layers.Activation('relu')(x)
 
     return x
+
 
 def build_resnet_20(input_shape, num_classes):
     # Define the input layer
@@ -78,6 +81,47 @@ def build_resnet_32(input_shape: Tuple[(int, int, int)], num_classes: int) -> ke
 
     return model
 
+
+def wide_residual_block(x, filters, stride):
+    identity = x
+
+    # First convolution
+    x = Conv2D(filters, (3, 3), strides=(stride, stride), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+
+    # Second convolution
+    x = Conv2D(filters, (3, 3), strides=(1, 1), padding='same')(x)
+    x = BatchNormalization()(x)
+
+    # If the stride is greater than 1, the input shape needs to be adjusted.
+    if stride > 1:
+        identity = Conv2D(filters, (1, 1), strides=(stride, stride))(identity)
+
+    x = Add()([x, identity])
+    x = ReLU()(x)
+
+    return x
+
+# Define the WideResNet-40-2 model
+def create_wideresnet40_2(input_shape=(32, 32, 3), num_classes=10):
+    input_tensor = Input(shape=input_shape)
+    x = Conv2D(16, (3, 3), padding='same')(input_tensor)
+
+    num_blocks_list = [3, 3, 3]  # 3 blocks with 16, 32, 64 filters
+    filters = 16
+
+    for num_blocks in num_blocks_list:
+        x = wide_residual_block(x, filters, stride=1)
+        for _ in range(num_blocks - 1):
+            x = wide_residual_block(x, filters, stride=1)
+        filters *= 2
+
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(num_classes, activation='softmax')(x)
+
+    model = Model(inputs=input_tensor, outputs=x, name='wideresnet40_2')
+    return model
 
 if __name__ == "__main__":
     input_shape = (32, 32, 3)
