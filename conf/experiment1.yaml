@@ -27,6 +27,6 @@ optimizer:
     batch_size: 128 # [128, 512, 1024]
 dataset: cifar10
 model: resnet20
-loss: categorical_crossentropy
+loss: sparse_categorical_crossentropy
 epochs: 3
 runs: 1
