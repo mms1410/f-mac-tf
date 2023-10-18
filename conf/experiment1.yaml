@@ -13,12 +13,12 @@ optimizer:
     params:
       learning_rate: 0.001
     batch_size: 128
- # MFAC:
- #   params:
- #     m: [50, 100]
- #     damp: 1e-7
- #     learning_rate: 0.001
- #   batch_size: 128 # [128, 512, 1024]
+  MFAC:
+    params:
+      m: [50, 100]
+      damp: 1e-7
+      learning_rate: 0.001
+    batch_size: 128 # [128, 512, 1024]
   F-MFAC-SGD:
     params:
       m: [50, 100]
