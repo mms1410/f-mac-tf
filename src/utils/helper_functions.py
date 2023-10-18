@@ -5,7 +5,20 @@ import pandas as pd
 import tensorflow as tf
 import itertools
 from omegaconf.listconfig import ListConfig
+from pathlib import Path
 
+def set_log_dir(root:str, name:str="logs") -> Path:
+    """
+    Args:
+        root:
+
+    Returns:
+        string with path to log
+    """
+    log_dir_path = Path(root, name)
+    if not log_dir_path.exists():
+        log_dir_path.mkdir(parents=True)
+    return log_dir_path
 
 def residual_block(x: tf.keras.layers, filters: int):
     # Define a single residual block
