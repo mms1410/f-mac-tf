@@ -13,6 +13,7 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
 from src.optimizers.MFAC import Mfac
 from src.optimizers.SGD import MFAC
+from src.utils.helper_functions import build_resnet_20, build_resnet_32
 
 
 def load_optimizer(name: str, params: dict):
@@ -74,44 +75,19 @@ def get_dataset(name: str):
         (x_train, y_train), (x_test, y_test) = cifar100.load_data(label_mode='fine')
         x_train = x_train.astype('float32') / 255
         x_test = x_test.astype('float32') / 255
-        y_train = to_categorical(y_train, 100)
-        y_test = to_categorical(y_test, 100)
         return x_train, y_train, x_test, y_test
+
     elif name == "cifar10":
         (x_train, y_train), (x_test, y_test) = cifar10.load_data()
         x_train = x_train.astype('float32') / 255
         x_test = x_test.astype('float32') / 255
-        y_train = to_categorical(y_train, 10)
-        y_test = to_categorical(y_test, 10)
         return x_train, y_train, x_test, y_test
+
     elif name == "mnist":
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
         x_train, x_test = x_train / 255.0, x_test / 255.0
-        train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-        test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-        return train_dataset, test_dataset, None
-    elif name == "imagenet":
-        dataset, info = tfds.load("imagenet2012", with_info=True,
-                                  as_supervised=True,
-                                  download=False)
-        train_dataset, test_dataset = dataset["train"], dataset["test"]
-        # Extract features and labels
-        x_train, y_train = zip(*[(image, label) for image, label in train_dataset])
-        x_test, y_test = zip(*[(image, label) for image, label in test_dataset])
-
-        #  Convert to TensorFlow tensors
-        x_train = tf.convert_to_tensor(x_train)
-        x_test = tf.convert_to_tensor(x_test)
-        y_train = tf.convert_to_tensor(y_train)
-        y_test = tf.convert_to_tensor(y_test)
         return x_train, y_train, x_test, y_test
 
-    elif name == "imbd":
-        (x_train, y_train), (x_test, y_test) = tf.keras.datasets.imdb
-        train_dataset, test_dataset = dataset["train"], dataset["test"]
-        train_dataset = train_dataset.map(extract_text_and_labels)
-        test_dataset = test_dataset.map(extract_text_and_labels)
-        return train_dataset, test_dataset, info
     else:
         raise UnknownNameError(f"Requested dataset {name} not implemented.")
 
@@ -120,69 +96,26 @@ def get_model(name: str, n_classes, input_shape=None, top=False, weights=None):
     """
     """
     name = name.lower()
-    if name == "resnet50":
-        base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(32, 32, 3))
-        x = base_model.output
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Dense(1024, activation='relu')(x)
-        predictions = tf.keras.layers.Dense(10, activation='softmax')(x)
-        model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+    if name == "resnet20":
+        model = build_resnet_20(input_shape=input_shape, num_classes=n_classes)
         return model
-    elif name == "resnet101":
-        base_model = ResNet101(weights='imagenet', include_top=False, input_shape=(32, 32, 3))
-        x = base_model.output
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Dense(1024, activation='relu')(x)
-        predictions = tf.keras.layers.Dense(10, activation='softmax')(x)
-        model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
-        #model = keras.applications.ResNet101(weights=weights,
-        #                                            include_top=top,
-        #                                            input_shape=input_shape,
-        #                                           classes=n_classes)
-        #base_model = tf.keras.applications.resnet.ResNet101(weights=weights,
-        #                                                    include_top=top,
-        #                                                    input_shape=input_shape)
-        #inputs = keras.Input(shape=input_shape)
-        #x = base_model(inputs)
-        #x = keras.layers.GlobalAveragePooling2D()(x)
-        #outputs = keras.layers.Dense(n_classes)(x)
-        #model = keras.Model(input, outputs)
+
+    elif name == "resnet32":
+        model = build_resnet_32(input_shape=input_shape, num_classes=n_classes)
         return model
-    elif name == "resnet152":
-        model = tf.keras.applications.ResNet152(weights=weights,
-                                                include_top=top,
-                                                input_shape=input_shape)
-        #model = tf.keras.applications.resnet.ResNet152(weights=weights,
-        #                                               include_top=top,
-        #                                               input_shape=input_shape)
-        inputs = tf.keras.Input(shape=input_shape)
-        x = base_model(inputs)
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        outputs = tf.keras.layers.Dense(n_classes)(x)
-        model = tf.keras.Model(input, outputs)
+
+    elif name == "full_neural_network":
+        model = tf.keras.Sequential([
+            tf.keras.layers.Flatten(input_shape=(28, 28)),
+            tf.keras.layers.Dense(256, activation=tf.nn.relu),
+            tf.keras.layers.Dense(256, activation=tf.nn.relu),
+            tf.keras.layers.Dense(256, activation=tf.nn.relu),
+            tf.keras.layers.Dense(256, activation=tf.nn.relu),
+            tf.keras.layers.Dense(10, activation=tf.nn.softmax)
+            ])
         return model
     else:
         raise UnknownNameError(f"Requested model {name} not implemented.")
-
-def get_model_and_dataset(model_name):
-    # Dictionary mapping model names to corresponding datasets
-    model_dataset_map = {
-        "resnet101": "cifar10",
-        "resnet50": "mnist"
-    }
-    # Check if the provided model name is in the dictionary
-    if model_name in model_dataset_map:
-        dataset_name = model_dataset_map[model_name]
-        x_train, y_train, x_test, y_test = get_dataset(dataset_name)
-        input_shape = x_train.shape[1:]
-        n_classes = x_train.shape[-1]
-        model = get_model(model_name,
-                          input_shape=input_shape,
-                          top=True,
-                          n_classes=n_classes)
-        return model, x_train, y_train, x_test, y_test
-    else:
-        raise UnknownNameError(f"Model name {model_name} is not supported or cannot be processed.")
 
 
 if __name__ == "__main__":
