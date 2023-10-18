@@ -1,3 +1,4 @@
+"""Contains class Mfac."""
 import tensorflow as tf
 from src.m_fac_tf.utils.helper_functions import deflatten, RowWiseMatrixFifo
 

@@ -1,3 +1,29 @@
+import tensorflow as tf
+if __name__ == "__main__":
+    data == tf.keras.datasets.cifar10.load_data()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from datetime import datetime
 import tensorflow as tf
 from src.m_fac_tf.utils.monitor_training import ModelInspectionCallback

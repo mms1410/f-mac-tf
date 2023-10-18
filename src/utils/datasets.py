@@ -11,6 +11,8 @@ from tensorflow.keras.applications import ResNet50
 from keras.applications.mobilenet import MobileNet
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
+from src.m_fac_tf.optimizers.MFAC import Mfac
+from src.m_fac_tf.optimizers.SGD import MFAC
 
 
 def load_optimizer(name: str, params: dict):
@@ -26,12 +28,17 @@ def load_optimizer(name: str, params: dict):
     Raises:
         UnknownNameError exception.
     """
+    name = name.lower()
     if name == "adam":
         return tf.optimizers.Adam(**params)
-    if name == "sgd":
+    elif name == "sgd":
         return tf.optimizers.SGD(**params)
+    elif name == "f-mfac-sgd":
+        return Mfac(**params)
+    elif name == "mfac":
+        return MFAC(**params)
     else:
-        raise UnknownNameError(f"Given Optimizer name '{name}' isn ot implemeted.")  # noqa E501
+        raise UnknownNameError(f"Given Optimizer name '{name}' is not implemeted.")  # noqa E501
 
 
 class UnknownNameError(Exception):

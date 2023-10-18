@@ -1,5 +1,8 @@
-import tensorflow as tf
 from collections import deque
+
+import tensorflow as tf
+
+
 class MFAC(tf.keras.optimizers.Optimizer):
     def __init__(
         self,
@@ -16,7 +19,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="MFAC",
+        name="SGD-MFAC",
         **kwargs
     ):
         super().__init__(
@@ -73,8 +76,8 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self._built = True
 
          # Initialize self.D and self.B
-        #self.D = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
-        #self.B = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
+        self.D = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
+        self.B = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
 
     def minimize(self, loss, var_list, tape=None):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
@@ -138,7 +141,6 @@ class MFAC(tf.keras.optimizers.Optimizer):
         #Gradienten skalieren
         self.grad_fifo.append(gradient)
         if self.grad_fifo.counter == self.m:
-          self.G = tf.transpose(self.grad_fifo.values)
           self.D, self.B = self._setupMatrices()
           gradient = self._compute_InvMatVec(x=gradient)
 
@@ -179,84 +181,45 @@ class MFAC(tf.keras.optimizers.Optimizer):
 
     def _setupMatrices(self):
         # init matrices
-        print("self.g", self.G)
-        D = tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G)))
-        print("D", D)
-        B = tf.math.scalar_mul(self.damp, tf.linalg.eye(self.m))
-        print("B", B)
+        self.G = self.grad_fifo.values
+        self.D.assign(tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G))))
+        self.B.assign(tf.math.scalar_mul(self.damp, self.identity_matrix))
         # Compute D
         for idx in range(1, self.m):
-            denominator = tf.math.pow((self.m + D[idx - 1, idx - 1]), -1)
-            test = D[idx:, idx:] - denominator * tf.matmul(tf.transpose(D[idx - 1:, idx:]), D[idx - 1:, idx:])
-            D = tf.concat([D[:idx, :], tf.concat([D[idx:, :idx], test], axis=1)], axis=0)
-        D = tf.linalg.band_part(D, 0, -1)
-        print("D", D)
+            denominator = tf.math.pow((self.m + self.D[idx - 1, idx - 1]), -1)
+            test = self.D[idx:, idx:] - denominator * tf.matmul(tf.transpose(self.D[idx - 1:, idx:]), self.D[idx - 1:, idx:])
+            self.D[idx:, idx:].assign(test)
+        self.D = tf.linalg.band_part(self.D, 0, -1)
         # Compute B
         for idx in range(1, self.m):
-            denominator = self.m + tf.linalg.diag_part(D)[:idx]
-            tmp = tf.math.divide(-D[:idx, idx], denominator)
+            denominator = self.m + tf.linalg.diag_part(self.D)[:idx]
+            tmp = tf.math.divide(-self.D[:idx, idx], denominator)
             tmp = tf.transpose(tmp)
-            to_assign = tf.linalg.matvec(B[:idx, :idx], tmp)
-            B_row = tf.concat([to_assign, B[idx, idx:]], axis=0)
-            B = tf.concat([B[:idx, :], B_row[None, :], B[idx+1:, :]], axis=0)
-        print("B", B)
-        return D, B
+            to_assign = tf.linalg.matvec(self.B[:idx, :idx], tmp)
+            self.B[idx, :idx].assign(to_assign)
+        return self.D, self.B
 
     def _compute_InvMatVec(self, x):
         """
         Compute \hat{F_{m}}\bm{x} for precomputed D and B
         """
-        q = tf.linalg.matvec(self.G, x)  #self.G (Gradient_länge, self.m); x (Gradient_länge, 1)
-        print("q", q)
+        self.G = self.grad_fifo.values
+        print("self.g", self.G)
+        q = tf.linalg.matvec(self.G, x, transpose_a=True)  #self.G (Gradient_länge, self.m); x (Gradient_länge, 1)
         q = tf.math.scalar_mul(self.damp, q)
         print("q", q)
         q0 = q[0] / (self.m + self.D[0, 0])
-        print("q0", q0)
         q = tf.concat([[q0], q[1:]], axis=0)
-        print("q", q)
         for idx in range(1, self.m):
             tmp = q[idx:] - tf.math.scalar_mul(q[idx - 1], tf.transpose(self.D[idx - 1, idx:]))
-            print("tmp", tmp)
             q = tf.concat([q[:idx], tmp], axis=0)
-            print("q", q)
-        print("q", q)
         denominator =self.m + tf.linalg.diag_part(self.D)
-        print("denominator", denominator)
         q = q / denominator
-        print("q", q)
-        q = tf.reshape(q, [1,self.m])
-        print("q", q)
-        tmp = tf.matmul(q, self.B)
+        tmp = tf.linalg.matvec(self.B, q)
         print("tmp", tmp)
-        a = tf.math.scalar_mul(self.damp, x) #
+        a = tf.math.scalar_mul(self.damp, x)
         print("a", a)
-        b = tf.transpose(tf.matmul(tmp, self.G))
+        b = tf.transpose(tf.linalg.matvec(self.G, tmp, transpose_a=True))
         print("b", b)
         result = a - b
-        return a
-
-class MatrixFifo:
-    """
-    Implements idea of fifo queue for tensorflow matrix.
-    """
-    def __init__(self, ncol):
-        self.values = None
-        self.ncol=ncol
-        self.counter = 0
-
-    def append(self, vector):
-        """
-        For k by m matrix and vecotr of dimension k by 1 move columns 2,...,m 'to left by one position' and substitute column m with vector.
-        """
-        if self.values is None:
-            # first vector to append will determine nrow
-            self.values = tf.Variable(tf.zeros(shape=[vector.shape[0], self.ncol]))
-            self.values[:,-1].assign(tf.cast(vector, dtype=self.values.dtype))
-        else:
-            # TODO: throw error message if vector has incompatible shape
-            tmp = tf.identity(self.values)
-            # update last column with new vector
-            self.values[:,-1].assign(tf.cast(vector, dtype=self.values.dtype))
-            # move columns to left
-            self.values[:,:-1].assign(tmp[:,1:])
-        self.counter += 1
+        return result
