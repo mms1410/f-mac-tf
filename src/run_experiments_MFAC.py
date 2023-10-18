@@ -7,6 +7,7 @@ from src.optimizers.MFAC import Mfac
 from tensorflow.keras.optimizers.experimental import SGD as SGD
 import tensorflow.keras.datasets.mnist as mnist
 from src.utils.helper_functions import write_results_to_plot
+from src.utils.datasets import get_dataset, get_model
 
 
 if __name__ == "__main__":
@@ -16,8 +17,12 @@ if __name__ == "__main__":
     damp = 1e-8
     batch_size = 1000
     optimizer = Mfac(m=m, damp=damp)
-    # dataset_name = "resnet50"  # resnet50, resnet101
-    # model, x_train, y_train, x_test, y_test = get_model_and_dataset(dataset_name)  # noqa E501
+    data_name = "cifar10"
+    model_name = "resnet20"
+    n_classes = 10
+    input_shape = (32, 32, 3)
+    x_train, y_train, x_test, y_test, model = get_dataset(data_name)
+    model = get_model(model_name, n_classes, input_shape)
 
     model = tf.keras.Sequential([
         tf.keras.layers.Flatten(input_shape=(28, 28)),
