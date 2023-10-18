@@ -8,6 +8,8 @@ from src.utils.datasets import get_dataset, get_model
 import datetime
 from tensorflow.keras.callbacks import CSVLogger
 from src.utils.monitor_training import TimeCallback
+import tensorflow as tf
+from numpy import unique as unique
 
 project_dir = Path(__file__).resolve().parents[1]
 config_path = Path(project_dir, "conf")
@@ -18,11 +20,12 @@ def main(conf: DictConfig):
     dataset_name = conf.dataset
     model_name = conf.model
     x_train, y_train, x_test, y_test = get_dataset(dataset_name)
-    if dataset_name == "cifar10":
-        input_shape = (32, 32, 3)
-    elif dataset_name == "mnist":
-        input_shape = (28, 28, 1)
-    model = get_model(model_name, n_classes=10, input_shape=input_shape)
+    input_shape = x_train.shape[1:]
+    n_classes = len(unique(y_train))
+
+    model = get_model(model_name,
+                      n_classes=n_classes,
+                      input_shape=input_shape)
     epochs = conf.epochs
     loss = conf.loss
     for optimizer_name in conf.optimizer:
