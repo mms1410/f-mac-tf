@@ -1,0 +1,32 @@
+# no logging from hydra, done by callbacks
+defaults:
+  - _self_
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+# actual experiment configuration
+optimizer:
+  SGD:
+    params:
+      learning_rate: 0.001
+    batch_size: 128
+ # MFAC:
+ #   params:
+ #     m: [50, 100]
+ #     damp: 1e-7
+ #     learning_rate: 0.001
+ #   batch_size: 128 # [128, 512, 1024]
+  F-MFAC-SGD:
+    params:
+      m: [50, 100]
+      damp: 1e-7
+      learning_rate: 0.001
+    batch_size: 128 # [128, 512, 1024]
+dataset: cifar10
+model: resnet20
+loss: categorical_crossentropy
+epochs: 3
+runs: 1

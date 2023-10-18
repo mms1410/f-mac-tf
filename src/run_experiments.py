@@ -1,82 +1,69 @@
-import tensorflow as tf
+import hydra
+from omegaconf import OmegaConf
+from omegaconf import DictConfig
+from pathlib import Path
+from src.utils.helper_functions import get_param_combo_list
+from src.utils.datasets import load_optimizer
+from src.utils.datasets import get_dataset, get_model
+import datetime
+from tensorflow.keras.callbacks import CSVLogger
+from src.utils.monitor_training import TimeCallback
+
+project_dir = Path(__file__).resolve().parents[1]
+config_path = Path(project_dir, "conf")
+
+
+@hydra.main(config_path=str(config_path), config_name="experiment1")
+def main(conf: DictConfig):
+    dataset_name = conf.dataset
+    model_name = conf.model
+    x_train, y_train, x_test, y_test = get_dataset(dataset_name)
+    if dataset_name == "cifar10":
+        input_shape = (32, 32, 3)
+    elif dataset_name == "mnist":
+        input_shape = (28, 28, 1)
+    model = get_model(model_name, n_classes=10, input_shape=input_shape)
+    epochs = conf.epochs
+    loss = conf.loss
+    for optimizer_name in conf.optimizer:
+        optimizer_dict = conf["optimizer"][optimizer_name]
+        optimizer_params = optimizer_dict.params
+        param_combos = get_param_combo_list(optimizer_params)
+        batch_size = optimizer_dict.batch_size
+        for run in range(conf.runs):
+                for param_combo in param_combos:
+                    # set optimizer
+                    if optimizer_name.lower().startswith("mfac"):
+                        optimizer = load_optimizer(optimizer_name, param_combo)
+                    elif optimizer_name.lower().startswith("f-mfac"):
+                        optimizer = load_optimizer(optimizer_name, param_combo)
+                    elif optimizer_name.lower() == "adam":
+                        optimizer = load_optimizer(optimizer_name, param_combo)
+                    elif optimizer_name.lower() == "sgd":
+                        optimizer = load_optimizer(optimizer_name, param_combo)
+
+                    configuration_name = datetime.datetime.now()
+                    configuration_name = configuration_name.strftime("%Y-%m-%d:%H")
+                    configuration_name = (configuration_name + "_" +
+                                          optimizer_name +
+                                          "_" + model_name + "_"
+                                          "_batchsize" +
+                                          str(batch_size) +
+                                          "_run" +
+                                          str(run))
+                    print(configuration_name)
+                    model.compile(optimizer=optimizer,
+                                  loss=loss,
+                                  metrics=["accuracy"],
+                                  run_eagerly=True)
+
+                    csv_logger = CSVLogger(configuration_name, separator=",", append=False)
+
+                    model.fit(x_train, y_train,
+                              epochs=epochs,
+                              batch_size=batch_size,
+                              callbacks=[TimeCallback(), csv_logger])
+
 if __name__ == "__main__":
-    data == tf.keras.datasets.cifar10.load_data()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from datetime import datetime
-import tensorflow as tf
-from src.m_fac_tf.utils.monitor_training import ModelInspectionCallback
-from optimizers.tester import TestOptimizer
-from src.m_fac_tf.utils.helper_functions import get_simple_raw_model
-
-
-if __name__ == "__main__":
-    (cifar_train_images, cifar_train_labels), (cifar_test_images, cifar_test_labels) = tf.keras.datasets.cifar10.load_data()
-    cifar_train_images = cifar_train_images[:500]; cifar_train_labels = cifar_train_labels[:500]
-    (mnist_training_data, mnist_training_labels), (mnist_test_data, mnist_test_labels) = tf.keras.datasets.mnist.load_data()
-    mnist_training_data, mnist_test_data = mnist_training_data / 255, mnist_test_data / 255
-    epochs = 10
-    batch_size = 128
-    optimizer = tf.keras.optimizers.Adam()
-    optimizer2 = TestOptimizer(m=6, learning_rate=0.001)
-
-
-    logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
-                                                 histogram_freq = 1,
-                                                 profile_batch = '500,520')
-
-    ############## CIFAR
-    #cifar_model = tf.keras.applications.resnet50.ResNet50(include_top=False,
-    #                                                 weights='imagenet',
-    #                                                 input_shape=(32,32,3))
-
-    cifar_shape = (32,32,3)
-    cifar_model = get_simple_raw_model(input_shape=cifar_shape, target_size=10) # 6 layers where 4 are trainable
-
-    cifar_model.compile(optimizer=optimizer,
-                  loss = "sparse_categorical_crossentropy",
-                  metrics = ["accuracy"])
-    
-    cifar_hist = cifar_model.fit(x=cifar_train_images,
-                     y=cifar_train_labels,
-                     batch_size=batch_size,
-                     epochs=epochs,
-                     verbose=1,
-                    callbacks = [tboard_callback])
-
-
-
-    ############## MNIST
-    #mnist_model = tf.keras.applications.resnet50.ResNet50(include_top=False,
-    #                                                weights='imagenet',
-    #                                                input_shape=(32,32, 3))
-    #mnist_model.compile(optimizer=optimizer,
-    #              loss = "sparse_categorical_crossentropy",
-    #              metrics = ["accuracy"])
-    #mnist_hist = mnist_model.fit(x=mnist_training_data,
-    #                  y=mnist_training_labels,
-    #                  batch_size=batch_size,
-    #                  epochs=epochs,
-    #                  verbose=1)    
+    conf = OmegaConf.load(Path(config_path, "experiment1.yaml"))
+    main()

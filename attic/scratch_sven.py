@@ -12,7 +12,7 @@ from omegaconf import DictConfig, OmegaConf
 #    # print(hydra.utils.get_original_cwd())
 
 if __name__ == "__main__":
-    cfg = OmegaConf.load("conf/mfac_experiment.yaml")
+    cfg = OmegaConf.load("conf/experiment1.yaml")
     experiment = cfg.experiments[0]
     experiment_name = experiment.get("name")
     experiment_optimizers = experiment.optimizer
