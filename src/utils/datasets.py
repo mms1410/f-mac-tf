@@ -11,8 +11,8 @@ from tensorflow.keras.applications import ResNet50
 from keras.applications.mobilenet import MobileNet
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
-from src.m_fac_tf.optimizers.MFAC import Mfac
-from src.m_fac_tf.optimizers.SGD import MFAC
+from src.optimizers.MFAC import Mfac
+from src.optimizers.SGD import MFAC
 
 
 def load_optimizer(name: str, params: dict):

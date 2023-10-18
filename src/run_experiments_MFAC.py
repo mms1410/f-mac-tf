@@ -2,11 +2,11 @@ from datetime import datetime as datetime
 import tensorflow as tf
 from pathlib import Path
 from tensorflow.keras.callbacks import CSVLogger
-from src.m_fac_tf.utils.monitor_training import TimeCallback
-from src.m_fac_tf.optimizers.MFAC import Mfac
+from src.utils.monitor_training import TimeCallback
+from src.optimizers.MFAC import Mfac
 from tensorflow.keras.optimizers.experimental import SGD as SGD
 import tensorflow.keras.datasets.mnist as mnist
-from src.m_fac_tf.utils.helper_functions import write_results_to_plot
+from src.utils.helper_functions import write_results_to_plot
 
 
 if __name__ == "__main__":
