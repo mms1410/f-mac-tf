@@ -1,10 +1,10 @@
 """Helper functions used in models and optimizers module."""
 from typing import List, Tuple
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
-
-# TODO Reihenweise
+import itertools
+from omegaconf.listconfig import ListConfig
 
 
 def get_simple_raw_model(input_shape, target_size):
@@ -143,28 +143,65 @@ def deflatten(flattened_grads: tf.Variable, shapes_grads: list[tf.shape]) -> tup
     return deflattened
 
 
-if __name__ == "__main__":
-    m = 5
-    d = 8
-    vec1 = tf.constant(1, shape=(1, d), dtype=tf.float32)
-    vec2 = tf.constant(2, shape=(1, d), dtype=tf.float32)
-    vec3 = tf.constant(3, shape=(1, d), dtype=tf.float32)
-    vec4 = tf.constant(4, shape=(1, d), dtype=tf.float32)
-    vec5 = tf.constant(5, shape=(1, d), dtype=tf.float32)
-    vec6 = tf.constant(6, shape=(1, d), dtype=tf.float32)
-    vec7 = tf.constant(7, shape=(1, d), dtype=tf.float32)
+def write_results_to_plot(csv_file: str, destination_file: str) -> None:
+    """
+    """
+    df = pd.read_csv(csv_file)
+    # Extract data for each metric
+    epochs = df["epoch"]
+    accuracy = df["accuracy"]
+    elapsed_time = df["elapsed_time"]
+    loss = df["loss"]
+    # Create subplots
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    fig.suptitle("Metrics Over Epochs")
+    # Plot accuracy
+    axes[0, 0].plot(epochs, accuracy, label="accuracy", color="blue")
+    axes[0, 0].set_title("accuracy")
+    axes[0, 0].set_xlabel("epoch")
+    axes[0, 0].set_ylabel("accuracy")
+    # Plot elapsed_time
+    axes[0, 1].plot(epochs, elapsed_time, label="elapsed_time", color="green")
+    axes[0, 1].set_title("elapsed_time")
+    axes[0, 1].set_xlabel("epochs")
+    axes[0, 1].set_ylabel("elapsed_time")
+    # Plot loss
+    axes[1, 0].plot(epochs, loss, label="loss", color='red')
+    axes[1, 0].set_title("loss")
+    axes[1, 0].set_xlabel("epochs")
+    axes[1, 0].set_ylabel("loss")
+    # Adjust layout
+    plt.tight_layout()
+    # Save the figure as a PNG image
+    plt.savefig(destination_file)
 
-    mat = RowWiseMatrixFifo(m=m)
-    mat.append(vec1)
-    mat.append(vec2)
-    mat.append(vec3)
-    mat.append(vec4)
-    mat.append(vec5)
-    print(mat.values)
-    mat.append(vec6)
-    print(mat.values)
-    print(mat.counter)
-    mat.counter = 0
-    mat.values = None
-    mat.append(vec7)
-    print(mat.values)
+
+def get_param_combo_list(params:dict) -> List:
+    """Create List of possible param combinations.
+
+    Args:
+        params: dictionary of possible param constellations.
+
+    Returns:
+        A list consisting of a dictioary for each combination.
+    """
+    # create all combinations
+    keys = list(params.keys())
+    # create a list with a list for each dimension in which cartesian product is computed.
+    # if a value is already a list then just take value else list of value
+    # if read from yaml via hydra element is not list but listConfig type.
+    values = [value if isinstance(value, (ListConfig, list)) else [value] for value in params.values() ]
+
+    combinations = itertools.product(*values)
+    combinations = list(combinations)
+    # append in list
+    result_dicts = []
+    for combo in combinations:
+        result_dict = {key: val for key, val in zip(keys, combo)}
+        result_dicts.append(result_dict)
+
+    return result_dicts
+
+if __name__ == "__main__":
+    params = {'m': [50, 100, 300, 500], 'damp': 1e-07, 'learning_rate': 0.001}
+    param_dicts = get_param_combo_list(params)

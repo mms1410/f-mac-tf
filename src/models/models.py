@@ -1,12 +1,21 @@
 """Model builder."""
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Add, GlobalAveragePooling2D, Dense
-from tensorflow.keras.models import Model
 from typing import Tuple
+
 import keras
+import tensorflow as tf
+from tensorflow.keras.layers import (
+    Add,
+    BatchNormalization,
+    Conv2D,
+    Dense,
+    GlobalAveragePooling2D,
+    Input,
+    ReLU,
+)
+from tensorflow.keras.models import Model
 
 
-def residual_block(x:tf.keras.layers, filters: int):
+def residual_block(x: tf.keras.layers, filters: int):
     # Define a single residual block
     shortcut = x
     x = tf.keras.layers.Conv2D(filters, (3, 3), padding='same')(x)
@@ -103,6 +112,7 @@ def wide_residual_block(x, filters, stride):
 
     return x
 
+
 # Define the WideResNet-40-2 model
 def create_wideresnet40_2(input_shape=(32, 32, 3), num_classes=10):
     input_tensor = Input(shape=input_shape)
@@ -122,6 +132,7 @@ def create_wideresnet40_2(input_shape=(32, 32, 3), num_classes=10):
 
     model = Model(inputs=input_tensor, outputs=x, name='wideresnet40_2')
     return model
+
 
 if __name__ == "__main__":
     input_shape = (32, 32, 3)

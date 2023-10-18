@@ -2,6 +2,7 @@
 import tensorflow as tf
 import logging
 import datetime
+import time
 
 
 class ModelInspectionCallback(tf.keras.callbacks.Callback):
@@ -58,3 +59,12 @@ class ProfilerCallback(tf.keras.callbacks.Callback):
     def _write_to_log(self, message):
         logging.basicConfig(filename=self.log_file_path, level=logging.INFO)
         logging.info(message)
+
+class TimeCallback(tf.keras.callbacks.Callback):
+    def on_train_begin(self, logs=None):
+        self.start_time = time.time()
+
+    def on_epoch_end(self, epoch, logs=None):
+        # Calculate the elapsed time in seconds
+        elapsed_time = time.time() - self.start_time
+        logs["elapsed_time"] = elapsed_time

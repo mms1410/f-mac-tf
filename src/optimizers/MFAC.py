@@ -1,5 +1,6 @@
+"""Contains class Mfac."""
 import tensorflow as tf
-from src.m_fac_tf.utils.helper_functions import deflatten, RowWiseMatrixFifo
+from src.utils.helper_functions import deflatten, RowWiseMatrixFifo
 
 matmul = tf.linalg.matmul
 scalmul = tf.math.scalar_mul
