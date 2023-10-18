@@ -21,7 +21,7 @@ def load_optimizer(name: str, params: dict):
         params: dictionary of all necessary parameter values.
     
     Returns:
-        Tensosrflow Optimizer class
+        Tensorflow Optimizer class
 
     Raises:
         UnknownNameError exception.
@@ -98,6 +98,7 @@ def get_dataset(name: str):
         y_train = tf.convert_to_tensor(y_train)
         y_test = tf.convert_to_tensor(y_test)
         return x_train, y_train, x_test, y_test
+
     elif name == "imbd":
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.imdb
         train_dataset, test_dataset = dataset["train"], dataset["test"]
@@ -159,14 +160,8 @@ def get_model(name: str, n_classes, input_shape=None, top=False, weights=None):
 def get_model_and_dataset(model_name):
     # Dictionary mapping model names to corresponding datasets
     model_dataset_map = {
-        "bert": "imbd",
         "resnet101": "cifar10",
-        "resnet152": "cifar10",
-        "resnet50": "cifar10",
-        "inceptionv3": "imagenet",
-        "mobilenetv2": "imagenet",
-        "inceptionresnetv2": "imagenet",
-        "mobilenetv1": "ImageNet",
+        "resnet50": "mnist"
     }
     # Check if the provided model name is in the dictionary
     if model_name in model_dataset_map:
