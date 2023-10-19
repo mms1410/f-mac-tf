@@ -8,9 +8,9 @@ matvec = tf.linalg.matvec
 band_part = tf.linalg.band_part
 diag_part = tf.linalg.diag_part
 
-class Mfac(tf.keras.optimizers.SGD):
+class Adam_Mfac(tf.keras.optimizers.Adam):
     def __init__(self, m, damp, name="MFAC", **kwargs):
-        super(Mfac, self).__init__(name=name)
+        super(Adam_Mfac, self).__init__(name=name)
         self.m = m
         self.damp = damp
         self.D = None

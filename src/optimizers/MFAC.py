@@ -1,5 +1,13 @@
+"""Class for custom MFAC-SGD optimizer."""
+
 import tensorflow as tf
 from src.utils.helper_functions import deflatten, RowWiseMatrixFifo
+
+matmul = tf.linalg.matmul
+scalmul = tf.math.scalar_mul
+matvec = tf.linalg.matvec
+band_part = tf.linalg.band_part
+diag_part = tf.linalg.diag_part
 
 class MFAC(tf.keras.optimizers.Optimizer):
     def __init__(
@@ -20,6 +28,28 @@ class MFAC(tf.keras.optimizers.Optimizer):
         name="f-mfac-sgd",
         **kwargs
     ):
+        """Initialize the optimizer and all variables.
+
+        Args:
+            learning_rate: float or learning rate schedule function
+            momentum: float or momentum schedule function
+            nesterov: bool, whether to use Nesterov momentum
+            weight_decay: float or weight decay schedule function
+            clipnorm: float or global norm gradient clipping rate
+            clipvalue: float or individual gradient clipping rate
+            global_clipnorm: float or global norm gradient clipping rate
+            use_ema: bool, whether to use exponential moving average
+            m: int, number of gradients to store
+            damp: float, damping factor
+            ema_momentum: float or ema momentum schedule function
+            ema_overwrite_frequency: int or ema overwrite frequency schedule function
+            jit_compile: bool, whether to jit compile the optimizer
+            name: string, name of the optimizer
+            **kwargs: for backwards compatibility
+
+
+
+        """
         super().__init__(
             name=name,
             weight_decay=weight_decay,
@@ -37,7 +67,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self.nesterov = nesterov
         self.damp = damp
         self.m = m
-        self.grad_fifo = RowWiseMatrixFifo(self.m)
+        self.GradFifo = RowWiseMatrixFifo(self.m)
         self.D = None
         self.B = None
         self.G = None
@@ -69,6 +99,20 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self._built = True
 
     def minimize(self, loss, var_list, tape=None):
+        """Minimize the loss function.
+
+        Compute the Gradients for each variable in var_list. If the Fifo-Que is full,
+        the gradients are scaled using the MFAC algorithm and be applied to the variables.
+
+        Args:
+            loss: loss function
+            var_list: list of variables to compute gradients for
+            tape: gradient tape for automatic differentiation
+
+        Returns:
+            None
+
+        """
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
 
         if grads_and_vars is not None:
@@ -79,7 +123,15 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self.apply_gradients(grads_and_vars)
 
     def update_step(self, gradient, variable):
-        """Update step given gradient and the associated model variable."""
+        """Update step given gradient and the associated model variable.
+
+        Args:
+            gradient: gradient of the model variable
+            variable: model variable
+
+        Returns:
+            None
+        """
         lr = tf.cast(self.learning_rate, variable.dtype)
         m = None
         var_key = self._var_key(variable)
@@ -114,6 +166,20 @@ class MFAC(tf.keras.optimizers.Optimizer):
                 variable.assign_add(-gradient * lr)
 
     def scale_grads(self, grads):
+        """Scales the Gradients using the MFAC algorithm.
+
+        This Function formats all the Gradients into one singe one-dimensional Tensor and
+        append it to the fifo-que. If the fifo-que is full, the algorithm computes the scaled
+        gradients with the MFAC algorithm and returns the scaled gradients in the original shape.
+
+
+        Args:
+            grads: list of gradients for each variable
+
+        Returns:
+            list of scaled gradients in the original shape
+
+        """
         #Array zum speichern der alten shapes
         original_shapes = []
         #Array für eindimensionalen Gradienten
@@ -123,17 +189,13 @@ class MFAC(tf.keras.optimizers.Optimizer):
           gr = tf.reshape(grad, [-1])
           gradient.append(gr)
 
-        gradient = tf.concat(gradient, axis = 0)
+        gradient = tf.concat(gradient, axis=0)
 
         #Gradienten skalieren
-        print("Counter before call minimize", self.counter)
-        self.grad_fifo.append(gradient)
-        print("fifo.counter", self.grad_fifo.counter)
-        if self.grad_fifo.counter >= self.m:
-          print("Doing MFAC step")
-          self.G = self.grad_fifo.values
-          self.D, self.B = self._setupMatrices()
-          gradient = self._compute_InvMatVec(x=gradients)
+        self.GradFifo.append(gradient)
+        if self.GradFifo.counter >= self.m:
+          self._setupMatrices()
+          gradient = self._compute_InvMatVec(vec=gradient)
 
         #Array für Rückformattierung
         reconstructed_tensors = []
@@ -168,44 +230,58 @@ class MFAC(tf.keras.optimizers.Optimizer):
         )
         return config
 
-
     def _setupMatrices(self):
-        # init matrices
-        D = tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G)))
-        B = tf.math.scalar_mul(self.damp, tf.linalg.eye(self.m))
-        # Compute D
-        for idx in range(1, self.m):
-            denominator = tf.math.pow((self.m + D[idx - 1, idx - 1]), -1)
-            test = D[idx:, idx:] - denominator * tf.matmul(tf.transpose(D[idx - 1:, idx:]), D[idx - 1:, idx:])
-            D = tf.concat([D[:idx, :], tf.concat([D[idx:, :idx], test], axis=1)], axis=0)
-        D = tf.linalg.band_part(D, 0, -1)
-        # Compute B
-        for idx in range(1, self.m):
-            denominator = self.m + tf.linalg.diag_part(D)[:idx]
-            tmp = tf.math.divide(-D[:idx, idx], denominator)
-            tmp = tf.transpose(tmp)
-            to_assign = tf.linalg.matvec(B[:idx, :idx], tmp)
-            B_row = tf.concat([to_assign, B[idx, idx:]], axis=0)
-            B = tf.concat([B[:idx, :], B_row[None, :], B[idx+1:, :]], axis=0)
-        return D, B
+        """Implements Algorithm1 from paper."""
+        self.D = matmul(self.GradFifo.values,
+                        self.GradFifo.values,
+                        transpose_b=True)
+        self.D = tf.Variable(scalmul(self.damp, self.D))
+        self.B = tf.eye(self.m, self.m)
+        self.B = tf.Variable(scalmul(self.damp, self.B))
 
-    def _compute_InvMatVec(self, x):
-        """
-        Compute \hat{F_{m}}\bm{x} for precomputed D and B
-        """
-        q = tf.linalg.matvec(self.G, x)
-        q = tf.math.scalar_mul(self.damp, q)
-        q0 = q[0] / (self.m + self.D[0, 0])
-        q = tf.concat([[q0], q[1:]], axis=0)
         for idx in range(1, self.m):
-            tmp = q[idx:] - tf.math.scalar_mul(q[idx - 1], tf.transpose(self.D[idx - 1, idx:]))
-            q = tf.concat([q[:idx], tmp], axis=0)
-        denominator =self.m + tf.linalg.diag_part(self.D)
-        q = q / denominator
-        q = tf.reshape(q, [1,self.m])
-        tmp = tf.matmul(q, self.B)
-        a = tf.math.scalar_mul(self.damp, x)
-        b = tf.transpose(tf.matmul(tmp, self.G))
-        b = tf.reshape(b, a.shape)
-        result = tf.subtract(a, b)
+            to_subtract = matmul(self.D[idx - 1:, idx:],
+                                 self.D[idx - 1:, idx:],
+                                 transpose_a=True)
+            to_subtract = scalmul(1 / (self.m + self.D[idx - 1, idx - 1]),
+                                  to_subtract)
+            self.D[idx:, idx:].assign(self.D[idx:, idx:] - to_subtract)
+
+        # 0 for upper and -1 for all elements
+        self.D.assign(band_part(self.D, 0, -1))
+
+        for idx in range(1, self.m):
+            to_multiply = self.D[:idx, idx] / (-self.m + diag_part(self.D)[:idx])  # noqa E501
+            to_multiply = tf.expand_dims(to_multiply, axis=1)
+            to_assign = matmul(to_multiply,
+                               self.B[:idx, :idx],
+                               transpose_a=True)
+            self.B[idx, :idx].assign(to_assign)
+
+    def _compute_InvMatVec(self, vec: tf.Tensor):
+        """Implements Algorithm2 from paper.
+
+        Compute the Matrix vector product using precomputed matrices D and B.
+
+        Args:
+            vec: tf.Tensor
+
+        Returns:
+            scaled gradient vector
+        """
+        q_vec = matvec(self.GradFifo.values, vec)
+        q_vec = tf.Variable(scalmul(self.damp, q_vec))
+        q_vec[0].assign(q_vec[0] / (self.m + self.D[0, 0]))
+
+        for idx in range(1, self.m):
+            to_subtract = scalmul(q_vec[idx - 1],
+                                  tf.transpose(self.D[idx - 1, idx:]))
+            q_vec[idx:].assign(q_vec[idx:] - to_subtract)
+
+        q_vec = q_vec / (self.m + diag_part(self.D))
+        q_vec = tf.expand_dims(q_vec, axis=1)
+        to_subtract = matmul(q_vec, self.B, transpose_a=True)
+        to_subtract = matmul(to_subtract, self.GradFifo.values)
+        to_subtract = tf.transpose(to_subtract)
+        result = scalmul(self.damp, vec) - tf.squeeze(to_subtract)
         return result

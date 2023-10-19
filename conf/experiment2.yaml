@@ -41,9 +41,8 @@ optimizer:
       damp: 1e-6
       learning_rate: 0.0001
     batch_size: 512
-
 dataset: cifar10
-model: resnet20
+model: resnet32
 loss: sparse_categorical_crossentropy
 epochs: 50
 runs: 5
