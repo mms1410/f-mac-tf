@@ -1,6 +1,4 @@
-import hydra
 from omegaconf import OmegaConf
-from omegaconf import DictConfig
 from pathlib import Path
 from src.utils.helper_functions import get_param_combo_list
 from src.utils.datasets import load_optimizer
@@ -8,13 +6,18 @@ from src.utils.datasets import get_dataset, get_model
 from src.utils.monitor_training import CustomCSVLogger
 from numpy import unique as unique
 from src.utils.helper_functions import set_log_dir, set_log_filename_mfac, set_log_filename_default
+from src.utils.datasets import UnknownNameError
+from typing import Union
 
 project_dir = Path(__file__).resolve().parents[1]
 config_path = Path(project_dir, "conf")
 
 
-@hydra.main(config_path=str(config_path), config_name="experiment1")
-def main(conf: DictConfig):
+def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = config_path) -> None:
+    config_file = Path(conf_path, conf_name + ".yaml")
+    if not config_file.exists():
+        raise UnknownNameError(f"Configuration file {config_file} not found.")
+    conf = OmegaConf.load(config_file)
     log_dir = set_log_dir(root=project_dir)
     config_name = "experiment1"
     log_dir = set_log_dir(root=log_dir, name=config_name)
@@ -23,9 +26,6 @@ def main(conf: DictConfig):
     x_train, y_train, x_test, y_test = get_dataset(dataset_name)
     input_shape = x_train.shape[1:]
     n_classes = len(unique(y_train))
-    model = get_model(model_name,
-                      n_classes=n_classes,
-                      input_shape=input_shape)
     epochs = conf.epochs
     loss = conf.loss
     for optimizer_name in conf.optimizer:
@@ -44,6 +44,8 @@ def main(conf: DictConfig):
                         optimizer = load_optimizer(optimizer_name, param_combo)
                     elif optimizer_name.lower() == "sgd":
                         optimizer = load_optimizer(optimizer_name, param_combo)
+                    else:
+                        raise UnknownNameError(f"Optimizer {optimizer_name} currently not implemented in training.")
 
                     # set variables for configuration logging
                     if "mfac" in optimizer_name.lower():
@@ -65,6 +67,12 @@ def main(conf: DictConfig):
 
                     csv_logger = CustomCSVLogger(Path(optimizer_log_dir, conf_name + ".csv"))
 
+                    # reset model
+                    model = None
+                    model = get_model(model_name,
+                                      n_classes=n_classes,
+                                      input_shape=input_shape)
+
                     model.compile(optimizer=optimizer,
                                   loss=loss,
                                   metrics=["accuracy"],
@@ -77,5 +85,4 @@ def main(conf: DictConfig):
                               callbacks=[csv_logger])
 
 if __name__ == "__main__":
-    conf = OmegaConf.load(Path(config_path, "experiment1.yaml"))
-    main()
+    run_experiment("experiment1")

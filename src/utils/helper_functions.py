@@ -1,4 +1,5 @@
 """Helper functions used in models and optimizers module."""
+import os
 from typing import List, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -7,6 +8,53 @@ import itertools
 from omegaconf.listconfig import ListConfig
 from pathlib import Path
 import datetime
+import platform
+from typing import Union
+
+
+def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
+    """Aggregate logged metrics form multiple runs.
+
+    This function create a single dataframe for logged data where a new column
+    is created with filename.
+
+    Args:
+        folder: path to folder with csv files.
+
+    Returns:
+        pandas dataframe of logged data.
+    """
+    data = pd.DataFrame()
+    for filename in os.listdir(folder):
+        if filename.endswith(".csv"):
+            tmp = pd.read_csv(Path(folder, filename))
+            tmp["filename"] = filename
+            tmp["optimizer"] = os.path.basename(folder)
+            tmp["experiment"] = os.path.basename(os.path.dirname(folder))
+        data = pd.concat([data, tmp])
+        # ToDo: add mean value
+
+    return data
+
+
+def write_os_info_to_file(output_file: Union[str, Path]) -> None:
+    """
+
+    Args:
+        output_file:
+
+    Returns:
+
+    """
+    with open(output_file, "w") as file:
+        file.write("Operating System Information:\n")
+        file.write(f"System: {platform.system()}\n")
+        file.write(f"Node Name: {platform.node()}\n")
+        file.write(f"Release: {platform.release()}\n")
+        file.write(f"Version: {platform.version()}\n")
+        file.write(f"Machine: {platform.machine()}\n")
+        file.write(f"Processor: {platform.processor()}\n")
+
 
 
 def set_log_filename_default(optimizer_name, modelname, batchsize, run):
@@ -295,5 +343,7 @@ def get_param_combo_list(params:dict) -> List:
     return result_dicts
 
 if __name__ == "__main__":
-    params = {'m': [50, 100, 300, 500], 'damp': 1e-07, 'learning_rate': 0.001}
-    param_dicts = get_param_combo_list(params)
+    project_dir = Path(__file__).resolve().parents[2]
+    folder= Path(project_dir, "logs", "experiment1",  "SGD")
+    data = get_folder_dataframe(folder)
+    print(data.head())
