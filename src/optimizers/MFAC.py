@@ -1,13 +1,15 @@
 """Class for custom MFAC-SGD optimizer."""
 
 import tensorflow as tf
-from src.utils.helper_functions import deflatten, RowWiseMatrixFifo
+
+from src.utils.helper_functions import RowWiseMatrixFifo, deflatten
 
 matmul = tf.linalg.matmul
 scalmul = tf.math.scalar_mul
 matvec = tf.linalg.matvec
 band_part = tf.linalg.band_part
 diag_part = tf.linalg.diag_part
+
 
 class MFAC(tf.keras.optimizers.Optimizer):
     def __init__(
@@ -21,12 +23,12 @@ class MFAC(tf.keras.optimizers.Optimizer):
         global_clipnorm=None,
         use_ema=False,
         m=512,
-        damp = 1e-8,
+        damp=1e-8,
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
         name="f-mfac-sgd",
-        **kwargs
+        **kwargs,
     ):
         """Initialize the optimizer and all variables.
 
@@ -60,7 +62,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
             jit_compile=jit_compile,
-            **kwargs
+            **kwargs,
         )
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.momentum = momentum
@@ -72,9 +74,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self.B = None
         self.G = None
         self.lambd = 1 / damp
-        if isinstance(momentum, (int, float)) and (
-            momentum < 0 or momentum > 1
-        ):
+        if isinstance(momentum, (int, float)) and (momentum < 0 or momentum > 1):
             raise ValueError("`momentum` must be between [0, 1].")
 
     def build(self, var_list):
@@ -92,9 +92,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self.momentums = []
         for var in var_list:
             self.momentums.append(
-                self.add_variable_from_reference(
-                    model_variable=var, variable_name="m"
-                )
+                self.add_variable_from_reference(model_variable=var, variable_name="m")
             )
         self._built = True
 
@@ -141,9 +139,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         # TODO(b/204321487): Add nesterov acceleration.
         if isinstance(gradient, tf.IndexedSlices):
             # Sparse gradients.
-            add_value = tf.IndexedSlices(
-                -gradient.values * lr, gradient.indices
-            )
+            add_value = tf.IndexedSlices(-gradient.values * lr, gradient.indices)
             if m is not None:
                 m.assign(m * momentum)
                 m.scatter_add(add_value)
@@ -180,24 +176,24 @@ class MFAC(tf.keras.optimizers.Optimizer):
             list of scaled gradients in the original shape
 
         """
-        #Array zum speichern der alten shapes
+        # Array zum speichern der alten shapes
         original_shapes = []
-        #Array für eindimensionalen Gradienten
+        # Array für eindimensionalen Gradienten
         gradient = []
         for grad in grads:
-          original_shapes.append(grad.shape)
-          gr = tf.reshape(grad, [-1])
-          gradient.append(gr)
+            original_shapes.append(grad.shape)
+            gr = tf.reshape(grad, [-1])
+            gradient.append(gr)
 
         gradient = tf.concat(gradient, axis=0)
 
-        #Gradienten skalieren
+        # Gradienten skalieren
         self.GradFifo.append(gradient)
         if self.GradFifo.counter >= self.m:
-          self._setupMatrices()
-          gradient = self._compute_InvMatVec(vec=gradient)
+            self._setupMatrices()
+            gradient = self._compute_InvMatVec(vec=gradient)
 
-        #Array für Rückformattierung
+        # Array für Rückformattierung
         reconstructed_tensors = []
 
         start_index = 0
@@ -206,7 +202,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
             # Berechnen der Anzahl der Elemente in der ursprünglichen Shape
             num_elements = tf.reduce_prod(shape)
             # Extrahieren des entsprechenden Teils des Arrays
-            sub_array = gradient[start_index:start_index + num_elements]
+            sub_array = gradient[start_index : start_index + num_elements]
             # Umformen des Teil-Arrays in die ursprüngliche Shape
             reconstructed = tf.reshape(sub_array, shape)
             # Hinzufügen des rekonstruierten Tensors zur Liste
@@ -221,9 +217,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
 
         config.update(
             {
-                "learning_rate": self._serialize_hyperparameter(
-                    self._learning_rate
-                ),
+                "learning_rate": self._serialize_hyperparameter(self._learning_rate),
                 "momentum": self.momentum,
                 "nesterov": self.nesterov,
             }
@@ -232,19 +226,14 @@ class MFAC(tf.keras.optimizers.Optimizer):
 
     def _setupMatrices(self):
         """Implements Algorithm1 from paper."""
-        self.D = matmul(self.GradFifo.values,
-                        self.GradFifo.values,
-                        transpose_b=True)
+        self.D = matmul(self.GradFifo.values, self.GradFifo.values, transpose_b=True)
         self.D = tf.Variable(scalmul(self.damp, self.D))
         self.B = tf.eye(self.m, self.m)
         self.B = tf.Variable(scalmul(self.damp, self.B))
 
         for idx in range(1, self.m):
-            to_subtract = matmul(self.D[idx - 1:, idx:],
-                                 self.D[idx - 1:, idx:],
-                                 transpose_a=True)
-            to_subtract = scalmul(1 / (self.m + self.D[idx - 1, idx - 1]),
-                                  to_subtract)
+            to_subtract = matmul(self.D[idx - 1 :, idx:], self.D[idx - 1 :, idx:], transpose_a=True)
+            to_subtract = scalmul(1 / (self.m + self.D[idx - 1, idx - 1]), to_subtract)
             self.D[idx:, idx:].assign(self.D[idx:, idx:] - to_subtract)
 
         # 0 for upper and -1 for all elements
@@ -253,9 +242,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         for idx in range(1, self.m):
             to_multiply = self.D[:idx, idx] / (-self.m + diag_part(self.D)[:idx])  # noqa E501
             to_multiply = tf.expand_dims(to_multiply, axis=1)
-            to_assign = matmul(to_multiply,
-                               self.B[:idx, :idx],
-                               transpose_a=True)
+            to_assign = matmul(to_multiply, self.B[:idx, :idx], transpose_a=True)
             self.B[idx, :idx].assign(to_assign)
 
     def _compute_InvMatVec(self, vec: tf.Tensor):
@@ -274,8 +261,7 @@ class MFAC(tf.keras.optimizers.Optimizer):
         q_vec[0].assign(q_vec[0] / (self.m + self.D[0, 0]))
 
         for idx in range(1, self.m):
-            to_subtract = scalmul(q_vec[idx - 1],
-                                  tf.transpose(self.D[idx - 1, idx:]))
+            to_subtract = scalmul(q_vec[idx - 1], tf.transpose(self.D[idx - 1, idx:]))
             q_vec[idx:].assign(q_vec[idx:] - to_subtract)
 
         q_vec = q_vec / (self.m + diag_part(self.D))

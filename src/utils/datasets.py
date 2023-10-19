@@ -1,16 +1,16 @@
 """Function to load dataset and model."""
 
 import tensorflow as tf
+import tensorflow.keras.datasets as mnist
 import tensorflow_datasets as tfds
 import tensorflow_hub as hub
-import tensorflow.keras.datasets as mnist
-from tensorflow.keras.datasets import cifar10
-from tensorflow.keras.datasets import cifar100
-from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import cifar10, cifar100
+from tensorflow.keras.utils import to_categorical
+
+from src.optimizers.F_MFAC_ADAM import Adam_Mfac
 from src.optimizers.F_MFAC_SGD import Mfac
 from src.optimizers.MFAC import MFAC
-from src.optimizers.F_MFAC_ADAM import Adam_Mfac
 from src.utils.helper_functions import build_resnet_20, build_resnet_32
 
 
@@ -52,9 +52,9 @@ def get_mnist_model_and_data():
     x_train, x_test = x_train / 255.0, x_test / 255.0
     model = models.Sequential()
     model.add(layers.Flatten(input_shape=(28, 28)))
-    model.add(layers.Dense(512, activation='relu'))
+    model.add(layers.Dense(512, activation="relu"))
     model.add(layers.Dropout(0.2))
-    model.add(layers.Dense(10, activation='softmax'))
+    model.add(layers.Dense(10, activation="softmax"))
     return (x_train, y_train, x_test, y_test, model)
 
 
@@ -64,23 +64,24 @@ def preprocess_image(image, label):
     image = (image - 0.5) * 2.0  # Normalize to the range [-1, 1]
     return image, label
 
+
 def extract_text_and_labels(text, label):
     return text, tf.cast(label, tf.int32)
 
+
 def get_dataset(name: str):
-    """
-    """
+    """ """
     name = name.lower()
     if name == "cifar100":
-        (x_train, y_train), (x_test, y_test) = cifar100.load_data(label_mode='fine')
-        x_train = x_train.astype('float32') / 255
-        x_test = x_test.astype('float32') / 255
+        (x_train, y_train), (x_test, y_test) = cifar100.load_data(label_mode="fine")
+        x_train = x_train.astype("float32") / 255
+        x_test = x_test.astype("float32") / 255
         return x_train, y_train, x_test, y_test
 
     elif name == "cifar10":
         (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-        x_train = x_train.astype('float32') / 255
-        x_test = x_test.astype('float32') / 255
+        x_train = x_train.astype("float32") / 255
+        x_test = x_test.astype("float32") / 255
         return x_train, y_train, x_test, y_test
 
     elif name == "mnist":
@@ -93,8 +94,7 @@ def get_dataset(name: str):
 
 
 def get_model(name: str, n_classes, input_shape=None, top=False, weights=None):
-    """
-    """
+    """ """
     name = name.lower()
     if name == "resnet20":
         model = build_resnet_20(input_shape=input_shape, num_classes=n_classes)
@@ -105,14 +105,16 @@ def get_model(name: str, n_classes, input_shape=None, top=False, weights=None):
         return model
 
     elif name == "full_neural_network":
-        model = tf.keras.Sequential([
-            tf.keras.layers.Flatten(input_shape=(28, 28)),
-            tf.keras.layers.Dense(256, activation=tf.nn.relu),
-            tf.keras.layers.Dense(256, activation=tf.nn.relu),
-            tf.keras.layers.Dense(256, activation=tf.nn.relu),
-            tf.keras.layers.Dense(256, activation=tf.nn.relu),
-            tf.keras.layers.Dense(10, activation=tf.nn.softmax)
-            ])
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.Flatten(input_shape=(28, 28)),
+                tf.keras.layers.Dense(256, activation=tf.nn.relu),
+                tf.keras.layers.Dense(256, activation=tf.nn.relu),
+                tf.keras.layers.Dense(256, activation=tf.nn.relu),
+                tf.keras.layers.Dense(256, activation=tf.nn.relu),
+                tf.keras.layers.Dense(10, activation=tf.nn.softmax),
+            ]
+        )
         return model
     else:
         raise UnknownNameError(f"Requested model {name} not implemented.")
@@ -120,7 +122,5 @@ def get_model(name: str, n_classes, input_shape=None, top=False, weights=None):
 
 if __name__ == "__main__":
     model, x_train, y_train, x_test, y_test = get_model_and_dataset("resnet50")
-    model.compile(optimizer="adam",
-                  loss="categorical_crossentropy",
-                  metrics=["accuracy"])
+    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
     model.fit(x_train, y_train, epochs=3)

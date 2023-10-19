@@ -1,17 +1,17 @@
 """Helper functions used in models and optimizers module."""
+import datetime
+import itertools
 import os
-from typing import List, Tuple
+import platform
+import re
+from datetime import datetime as dt
+from pathlib import Path
+from typing import List, Tuple, Union
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
-import itertools
 from omegaconf.listconfig import ListConfig
-from pathlib import Path
-import datetime
-import platform
-from typing import Union
-import re
-from datetime import datetime as dt
 
 
 def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
@@ -34,7 +34,9 @@ def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
             tmp["optimizer"] = os.path.basename(folder)
             tmp["experiment"] = os.path.basename(os.path.dirname(folder))
         data = pd.concat([data, tmp])
-    data[["model", "batch_size", "run", "m"]] = data["filename"].apply(split_filename).apply(pd.Series)
+    data[["model", "batch_size", "run", "m"]] = (
+        data["filename"].apply(split_filename).apply(pd.Series)
+    )
     data[["time_stamp"]] = data["filename"].apply(get_time).apply(pd.Series)
     return data
 
@@ -57,6 +59,7 @@ def write_os_info_to_file(output_file: Union[str, Path]) -> None:
         file.write(f"Machine: {platform.machine()}\n")
         file.write(f"Processor: {platform.processor()}\n")
 
+
 def set_log_filename_default(optimizer_name, modelname, batchsize, run):
     """
 
@@ -77,6 +80,8 @@ def set_log_filename_default(optimizer_name, modelname, batchsize, run):
     conf_name = conf_name + "_run-" + str(run)
 
     return conf_name
+
+
 def set_log_filename_mfac(optimizer_name, modelname, batchsize, run, m):
     """Set the filename for experiment configuration.
 
@@ -99,7 +104,8 @@ def set_log_filename_mfac(optimizer_name, modelname, batchsize, run, m):
 
     return conf_name
 
-def set_log_dir(root:str, name:str="logs") -> Path:
+
+def set_log_dir(root: str, name: str = "logs") -> Path:
     """
     Args:
         root:
@@ -112,18 +118,19 @@ def set_log_dir(root:str, name:str="logs") -> Path:
         log_dir_path.mkdir(parents=True)
     return log_dir_path
 
+
 def residual_block(x: tf.keras.layers, filters: int):
     # Define a single residual block
     shortcut = x
-    x = tf.keras.layers.Conv2D(filters, (3, 3), padding='same')(x)
+    x = tf.keras.layers.Conv2D(filters, (3, 3), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Activation("relu")(x)
 
-    x = tf.keras.layers.Conv2D(filters, (3, 3), padding='same')(x)
+    x = tf.keras.layers.Conv2D(filters, (3, 3), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
 
     x = tf.keras.layers.Add()([x, shortcut])
-    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Activation("relu")(x)
 
     return x
 
@@ -133,9 +140,9 @@ def build_resnet_20(input_shape, num_classes):
     input_layer = tf.keras.layers.Input(shape=input_shape)
 
     # Initial convolution and max-pooling
-    x = tf.keras.layers.Conv2D(16, (3, 3), padding='same')(input_layer)
+    x = tf.keras.layers.Conv2D(16, (3, 3), padding="same")(input_layer)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Activation("relu")(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     # Stack residual blocks
@@ -145,12 +152,13 @@ def build_resnet_20(input_shape, num_classes):
 
     # Global average pooling and final dense layer
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+    x = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
 
     # Create the model
-    model = tf.keras.Model(inputs=input_layer, outputs=x, name='resnet20')
+    model = tf.keras.Model(inputs=input_layer, outputs=x, name="resnet20")
 
     return model
+
 
 def build_resnet_32(input_shape, num_classes: int):
     """Build Resnet 32 model.
@@ -168,9 +176,9 @@ def build_resnet_32(input_shape, num_classes: int):
     input_layer = tf.keras.layers.Input(shape=input_shape)
 
     # Initial convolution and max-pooling
-    x = tf.keras.layers.Conv2D(16, (3, 3), padding='same')(input_layer)
+    x = tf.keras.layers.Conv2D(16, (3, 3), padding="same")(input_layer)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Activation("relu")(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     # Stack residual blocks
@@ -180,24 +188,33 @@ def build_resnet_32(input_shape, num_classes: int):
 
     # Global average pooling and final dense layer
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+    x = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
 
     # Create the model
-    model = tf.keras.Model(inputs=input_layer, outputs=x, name='resnet32')
+    model = tf.keras.Model(inputs=input_layer, outputs=x, name="resnet32")
 
     return model
+
 
 def get_simple_raw_model(input_shape, target_size):
     """
     Create non-compilated model.
     """
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(filters=8, input_shape=input_shape, kernel_size=(4, 4),
-                               activation='relu', name='conv_1'),
-        tf.keras.layers.Conv2D(filters=8, kernel_size=(3, 3), activation='relu', name='conv_2'),
-        tf.keras.layers.Flatten(name='flatten'),
-        tf.keras.layers.Dense(units=32, activation='relu', name='dense_1'),
-        tf.keras.layers.Dense(units=target_size, activation='softmax', name='dense_2')])
+    model = tf.keras.models.Sequential(
+        [
+            tf.keras.layers.Conv2D(
+                filters=8,
+                input_shape=input_shape,
+                kernel_size=(4, 4),
+                activation="relu",
+                name="conv_1",
+            ),
+            tf.keras.layers.Conv2D(filters=8, kernel_size=(3, 3), activation="relu", name="conv_2"),
+            tf.keras.layers.Flatten(name="flatten"),
+            tf.keras.layers.Dense(units=32, activation="relu", name="dense_1"),
+            tf.keras.layers.Dense(units=target_size, activation="softmax", name="dense_2"),
+        ]
+    )
     return model
 
 
@@ -205,26 +222,28 @@ class MatrixFifo:
     """
     Implements idea of fifo queue for tensorflow matrix.
     """
+
     def __init__(self, ncol):
         self.values = None
-        self.ncol=ncol
+        self.ncol = ncol
         self.counter = 0
-    
-    def append(self, vector:tf.Tensor):
+
+    def append(self, vector: tf.Tensor):
         """
         For k by m matrix and vecotr of dimension k by 1 move columns 2,...,m 'to left by one position' and substitute column m with vector.
         """
         if self.values is None:
             # first vector to append will determine nrow
             self.values = tf.Variable(tf.zeros(shape=[vector.shape[0], self.ncol]))
-            self.values[:,-1].assign(tf.cast(vector, dtype=self.values.dtype))
+            self.values[:, -1].assign(tf.cast(vector, dtype=self.values.dtype))
         else:
             tmp = tf.identity(self.values)
             # update last column with new vector
-            self.values[:,-1].assign(tf.cast(vector, dtype=self.values.dtype))
+            self.values[:, -1].assign(tf.cast(vector, dtype=self.values.dtype))
             # move other columns to left
-            self.values[:,:-1].assign(tmp[:,1:])
+            self.values[:, :-1].assign(tmp[:, 1:])
         self.counter += 1
+
 
 class RowWiseMatrixFifo:
     """Row-wise Matrix fifo queue.
@@ -233,15 +252,16 @@ class RowWiseMatrixFifo:
     The matrix is initializes with zeros and when appended the firt m-1 rows
     move rown row down and the row on top is replaced by vector.
     """
+
     def __init__(self, m):
         self.values = None
         self.nrow = m
         self.counter = 0  # tf.Variable(0, dtype=tf.int32)
-    
+
     def append(self, vector: tf.Tensor):
         """Append vector to fifoMatrix
 
-        Append vector to first row and update all other rows, 
+        Append vector to first row and update all other rows,
         where row i contains values of former row i-1.
         The first appended vector determines ncol.
 
@@ -253,39 +273,43 @@ class RowWiseMatrixFifo:
             # this is done here so the shape of vector determines ncol
             # and is not set at init.
             self.values = tf.Variable(tf.zeros(shape=[self.nrow, vector.shape[0]]))  # noqa E501
-        
+
         # first m-1 rows are part of updated fifo matrix.
-        maintained_values = tf.identity(self.values[:self.nrow - 1, :])
+        maintained_values = tf.identity(self.values[: self.nrow - 1, :])
         # move row i is now former row i - 1.
         self.values[1:, :].assign(maintained_values)
         # update firt row with new vector.
         self.values[0, :].assign(vector)
         # increment counter
-        self. counter += 1  # self.counter.assign_add(1)
+        self.counter += 1  # self.counter.assign_add(1)
 
     def reset(self):
         self.counter = 0
         self.values = None
 
-def deflatten(flattened_grads: tf.Variable, shapes_grads: list[tf.shape]) -> tuple[tf.Variable]:  # noqa E501
+
+def deflatten(
+    flattened_grads: tf.Variable, shapes_grads: list[tf.shape]
+) -> tuple[tf.Variable]:  # noqa E501
     """Deflatten a tensorflow vector.
-    
+
     Args:
         flattened_grads: flattened gradients.
         shape_grads: shape in which to reshape
-    
+
     Return:
         tuple of tf.Variables
     """
     shapes_total = list(map(lambda x: tf.reduce_prod(x), shapes_grads))
-    intermediate = tf.split(flattened_grads, shapes_total, axis=0)   # noqa E501
-    deflattened = [tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)]  # noqa E501
+    intermediate = tf.split(flattened_grads, shapes_total, axis=0)  # noqa E501
+    deflattened = [
+        tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)
+    ]  # noqa E501
     return deflattened
 
 
 def write_results_to_plot(csv_file: str, destination_file: str) -> None:
-    """
-    """
+    """ """
     df = pd.read_csv(csv_file)
     # Extract data for each metric
     epochs = df["epoch"]
@@ -306,7 +330,7 @@ def write_results_to_plot(csv_file: str, destination_file: str) -> None:
     axes[0, 1].set_xlabel("epochs")
     axes[0, 1].set_ylabel("elapsed_time")
     # Plot loss
-    axes[1, 0].plot(epochs, loss, label="loss", color='red')
+    axes[1, 0].plot(epochs, loss, label="loss", color="red")
     axes[1, 0].set_title("loss")
     axes[1, 0].set_xlabel("epochs")
     axes[1, 0].set_ylabel("loss")
@@ -330,7 +354,9 @@ def get_param_combo_list(params: dict) -> List:
     # create a list with a list for each dimension in which cartesian product is computed.
     # if a value is already a list then just take value else list of value
     # if read from yaml via hydra element is not list but listConfig type.
-    values = [value if isinstance(value, (ListConfig, list)) else [value] for value in params.values() ]
+    values = [
+        value if isinstance(value, (ListConfig, list)) else [value] for value in params.values()
+    ]
 
     combinations = itertools.product(*values)
     combinations = list(combinations)
@@ -342,7 +368,8 @@ def get_param_combo_list(params: dict) -> List:
 
     return result_dicts
 
-def split_filename(string:str) -> Tuple[str, str, str, str]:
+
+def split_filename(string: str) -> Tuple[str, str, str, str]:
     """
 
     Args:
@@ -373,7 +400,8 @@ def split_filename(string:str) -> Tuple[str, str, str, str]:
 
     return model, batch_size, run, m
 
-def get_time(string:str):
+
+def get_time(string: str):
     """
 
     Args:
@@ -391,8 +419,8 @@ def get_time(string:str):
 
 
 if __name__ == "__main__":
-    pd.set_option('display.max_columns', 20)
+    pd.set_option("display.max_columns", 20)
     project_dir = Path(__file__).resolve().parents[2]
-    folder= Path(project_dir, "logs", "experiment1",  "SGD")
+    folder = Path(project_dir, "logs", "experiment1", "SGD")
     data = get_folder_dataframe(folder)
     filename = "2023-10-19:13:10m_SGD_resnet20_batch-128_m-100_run-2.csv"
