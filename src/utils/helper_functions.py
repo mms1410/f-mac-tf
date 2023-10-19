@@ -6,6 +6,50 @@ import tensorflow as tf
 import itertools
 from omegaconf.listconfig import ListConfig
 from pathlib import Path
+import datetime
+
+
+def set_log_filename_default(optimizer_name, modelname, batchsize, run):
+    """
+
+    Args:
+        optimizer_name:
+        modelname:
+        batchsize:
+        run:
+
+    Returns:
+        string with configuration information.
+    """
+    conf_name = datetime.datetime.now()
+    conf_name = conf_name.strftime("%Y-%m-%d:%H:%mm")
+    conf_name = conf_name + "_" + optimizer_name
+    conf_name = conf_name + "_" + modelname
+    conf_name = conf_name + "_batch-" + str(batchsize)
+    conf_name = conf_name + "_run-" + str(run)
+
+    return conf_name
+def set_log_filename_mfac(optimizer_name, modelname, batchsize, run, m):
+    """Set the filename for experiment configuration.
+
+    Args:
+        optimizer_name:
+        batchsize:
+        run:
+        m:
+
+    Returns:
+        string of configuration information.
+    """
+    conf_name = datetime.datetime.now()
+    conf_name = conf_name.strftime("%Y-%m-%d:%H:%mm")
+    conf_name = conf_name + "_" + optimizer_name
+    conf_name = conf_name + "_" + modelname
+    conf_name = conf_name + "_batch-" + str(batchsize)
+    conf_name = conf_name + "_m-" + str(m)
+    conf_name = conf_name + "_run-" + str(run)
+
+    return conf_name
 
 def set_log_dir(root:str, name:str="logs") -> Path:
     """
@@ -107,46 +151,6 @@ def get_simple_raw_model(input_shape, target_size):
         tf.keras.layers.Dense(units=32, activation='relu', name='dense_1'),
         tf.keras.layers.Dense(units=target_size, activation='softmax', name='dense_2')])
     return model
-
-def _setupMatrices(self, G:tf.Variable, D:tf.Variable, B:tf.Variable) -> None:
-        """
-        """
-        # init matrices
-        self.G = self.grad_fifo.values
-        self.D = tf.Variable(tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G))))
-        self.B = tf.Variable(tf.math.scalar_mul(self.damp, tf.Variable(tf.linalg.eye(self.m))))
-        # Compute D
-        for idx in range(1, self.m):
-            denominator = tf.math.pow((self.m + self.D[idx - 1, idx - 1]), -1)
-            test = self.D[idx:, idx:] - denominator * tf.matmul(tf.transpose(self.D[idx - 1:, idx:]), self.D[idx - 1:, idx:])
-            self.D[idx:, idx:].assign(test)
-        self.D = tf.linalg.band_part(self.D, 0, -1)
-        # Compute B
-        for idx in range(1, self.m):
-            denominator = self.m + tf.linalg.diag_part(self.D)[:idx]
-            tmp = tf.math.divide(-self.D[:idx, idx], denominator)
-            tmp = tf.transpose(tmp)
-            to_assign = tf.linalg.matvec(self.B[:idx, :idx], tmp)
-            self.B[idx, :idx].assign(to_assign)
-
-def _compute_InvMatVec(self, x):
-    """
-    Compute \hat{F_{m}}\bm{x} for precomputed D and B
-    """
-    self.G = self.grad_fifo.values
-    q = tf.Variable(tf.linalg.matvec(self.G, x))
-    q0 = q[0] / (self.m + self.D[0, 0])
-    q[0].assign(q0)
-    for idx in range(1, self.m):
-        tmp = q[idx:] - tf.math.scalar_mul(q[idx - 1], tf.transpose(self.D[idx - 1, idx:]))
-        q[idx:].assign(tmp)
-    denominator =self.m + tf.linalg.diag_part(self.D)
-    q = q / denominator
-    tmp = tf.linalg.matvec(self.B, q)
-    a = tf.transpose(tf.linalg.matvec(self.G, tmp, transpose_a=True))
-    b = tf.math.scalar_mul(self.damp, x)
-    result = a - b
-    return result
 
 
 class MatrixFifo:
