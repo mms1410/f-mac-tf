@@ -46,7 +46,7 @@ def main(conf: DictConfig):
                         optimizer = load_optimizer(optimizer_name, param_combo)
 
                     # set variables for configuration logging
-                    if "mfac" in optimizer_name:
+                    if "mfac" in optimizer_name.lower():
                         conf_name = set_log_filename_mfac(optimizer_name,
                                                           model_name,
                                                           batch_size,
