@@ -9,11 +9,6 @@
 </h1>
 
 <p align="center">
-    <a href="https://pypi.org/project/f_mac_tf">
-        <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/f_mac_tf" />
-    </a>
-    <a href="https://github.com//f-mac-tf/blob/main/LICENSE">
-        <img alt="PyPI - License" src="https://img.shields.io/pypi/l/f_mac_tf" />
     </a>  
     <a href="https://github.com/cthoyt/cookiecutter-python-package">
         <img alt="Cookiecutter template from @cthoyt" src="https://img.shields.io/badge/Cookiecutter-snekpack-blue" /> 
@@ -28,42 +23,30 @@
 
 Implementation of F-MAC algorithm of Frantar et. al. (2021) in Tensorflow.
 
+## :warning: Remark
+We use absolute imports from the project home directory (e.g. here where the README is located).
+For this the project home directory must be added to the module search path. This can for example be achieved by adding a '.env' file at project home level containing 'export PYTHONPATH="$PYTHONPATH:$PWD"'.
+
 ## 💪 Getting Started
 
-> TODO start configuration test runs.
+Each experiment must be defined in a configuration in yaml syntax (which is read using ['hydra'](https://hydra.cc/docs/intro/)).
+By calling `run_experiment(<configuration name>)` in 'run_experiments.py' one or multiple experiments can be run.
+For each experiment and optimizer a dedicated folder will be created in 'logs' containing csv files of tracked metrics for each run and parameter configuration.
+
 ## 👋 Attribution
+The idea of our optimizer(s) are not our own but based on the paper by Frantar et. al. 2021 [1].
+Special thanks to Prof. Dr. David Rügamer for supervising us.
 
 ### ⚖️ License
 
 The code in this package is licensed under the MIT License.
-
-<!--
-### 📖 Citation
-
-Citation goes here!
--->
-
-<!--
-### 🎁 Support
-
-This project has been supported by the following organizations (in alphabetical order):
-
-- [Harvard Program in Therapeutic Science - Laboratory of Systems Pharmacology](https://hits.harvard.edu/the-program/laboratory-of-systems-pharmacology/)
-
--->
-
-<!--
-### 💰 Funding
-
-This project has been supported by the following grants:
-
-| Funding Body                                             | Program                                                                                                                       | Grant           |
-|----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|-----------------|
-| DARPA                                                    | [Automating Scientific Knowledge Extraction (ASKE)](https://www.darpa.mil/program/automating-scientific-knowledge-extraction) | HR00111990009   |
--->
 
 ### 🍪 Cookiecutter
 
 This package was created with [@audreyfeldroy](https://github.com/audreyfeldroy)'s
 [cookiecutter](https://github.com/cookiecutter/cookiecutter) package using [@cthoyt](https://github.com/cthoyt)'s
 [cookiecutter-snekpack](https://github.com/cthoyt/cookiecutter-snekpack) template.
+
+## References
+
+\[1\] GFrantar, Elias et al. “M-FAC: Efficient Matrix-Free Approximations of Second-Order Information.” Neural Information Processing Systems (2021).
