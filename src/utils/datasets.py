@@ -8,9 +8,9 @@ from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.datasets import cifar100
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
-from src.optimizers.F-MFAC-SGD import Mfac
+from src.optimizers.F_MFAC_SGD import Mfac
 from src.optimizers.MFAC import MFAC
-from src.optimizers.F-MFAC-ADAM import Adam_Mfac
+from src.optimizers.F_MFAC_ADAM import Adam_Mfac
 from src.utils.helper_functions import build_resnet_20, build_resnet_32
 
 
