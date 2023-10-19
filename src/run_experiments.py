@@ -26,9 +26,6 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
     x_train, y_train, x_test, y_test = get_dataset(dataset_name)
     input_shape = x_train.shape[1:]
     n_classes = len(unique(y_train))
-    model = get_model(model_name,
-                      n_classes=n_classes,
-                      input_shape=input_shape)
     epochs = conf.epochs
     loss = conf.loss
     for optimizer_name in conf.optimizer:
@@ -69,6 +66,12 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
                         optimizer_log_dir.mkdir(exist_ok=True)
 
                     csv_logger = CustomCSVLogger(Path(optimizer_log_dir, conf_name + ".csv"))
+
+                    # reset model
+                    model = None
+                    model = get_model(model_name,
+                                      n_classes=n_classes,
+                                      input_shape=input_shape)
 
                     model.compile(optimizer=optimizer,
                                   loss=loss,
