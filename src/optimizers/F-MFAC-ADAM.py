@@ -8,7 +8,6 @@ matvec = tf.linalg.matvec
 band_part = tf.linalg.band_part
 diag_part = tf.linalg.diag_part
 
-
 class Mfac(tf.keras.optimizers.SGD):
     def __init__(self, m, damp, name="MFAC", **kwargs):
         super(Mfac, self).__init__(name=name)
@@ -19,10 +18,10 @@ class Mfac(tf.keras.optimizers.SGD):
         self.GradFifo = RowWiseMatrixFifo(self.m)
         self.test_slot_1 = tf.Variable(0, dtype=tf.int32)
         self.test_slot_2 = tf.Variable(0, dtype=tf.int32)
-    
+
     def update_step(self, gradient, variable):
         return super().update_step(gradient, variable)
-    
+
     def apply_gradients(self, grads_and_vars, name=None, skip_gradients_aggregation=False, **kwargs):  # noqa E501
         return super().apply_gradients(grads_and_vars, name, skip_gradients_aggregation, **kwargs)  # noqa E501
 
@@ -80,7 +79,7 @@ class Mfac(tf.keras.optimizers.SGD):
                                self.B[:idx, :idx],
                                transpose_a=True)
             self.B[idx, :idx].assign(to_assign)
-            
+
     def _compute_InvMatVec(self, vec: tf.Tensor):
         """Implements Algorithm2 from paper.
 
