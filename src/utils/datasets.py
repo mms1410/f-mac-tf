@@ -11,8 +11,9 @@ from tensorflow.keras.applications import ResNet50
 from keras.applications.mobilenet import MobileNet
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
-from src.optimizers.MFAC import Mfac
-from src.optimizers.SGD import MFAC
+from src.optimizers.F-MFAC-SGD import Mfac
+from src.optimizers.MFAC import MFAC
+from src.optimizers.F-MFAC-ADAM import Adam_Mfac
 from src.utils.helper_functions import build_resnet_20, build_resnet_32
 
 
@@ -38,6 +39,8 @@ def load_optimizer(name: str, params: dict):
         return Mfac(**params)
     elif name == "mfac":
         return MFAC(**params)
+    elif name == "f-mfac-adam":
+        return Adam_Mfac(**params)
     else:
         raise UnknownNameError(f"Given Optimizer name '{name}' is not implemeted.")  # noqa E501
 
