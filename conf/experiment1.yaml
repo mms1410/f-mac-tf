@@ -31,7 +31,7 @@ optimizer:
     batch_size: 512
   F-MFAC-SGD:
     params:
-      m: 412
+      m: 512
       damp: 1e-6
       learning_rate: 0.001
     batch_size: 512

@@ -18,8 +18,6 @@ class Mfac(tf.keras.optimizers.SGD):
         self.D = None
         self.B = None
         self.GradFifo = RowWiseMatrixFifo(self.m)
-        self.test_slot_1 = tf.Variable(0, dtype=tf.int32)
-        self.test_slot_2 = tf.Variable(0, dtype=tf.int32)
 
     def update_step(self, gradient, variable):
         return super().update_step(gradient, variable)
@@ -43,9 +41,7 @@ class Mfac(tf.keras.optimizers.SGD):
         flatten_grads = list(map(lambda x: tf.reshape(x, [-1]), gradients_list))  # noqa E501
         flatten_grads = tf.concat(flatten_grads, axis=0)
         self.GradFifo.append(flatten_grads)
-        self.test_slot_2.assign_add(1)
         if self.GradFifo.counter >= self.m:
-            self.test_slot_1.assign_add(1)
             # Do second order approximation
             # self.D, self.B = self._setupMatrices()
             self._setupMatrices()

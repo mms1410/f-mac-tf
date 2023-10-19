@@ -23,7 +23,7 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
         raise UnknownNameError(f"Configuration file {config_file} not found.")
     conf = OmegaConf.load(config_file)
     log_dir = set_log_dir(root=project_dir)
-    config_name = "experiment1"
+    config_name = "experiment2"
     log_dir = set_log_dir(root=log_dir, name=config_name)
     dataset_name = conf.dataset
     model_name = conf.model
@@ -42,11 +42,13 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
                 # set optimizer
                 if optimizer_name.lower().startswith("mfac"):
                     optimizer = load_optimizer(optimizer_name, param_combo)
-                elif optimizer_name.lower().startswith("f-mfac"):
+                elif optimizer_name.lower().startswith("f-mfac-sgd"):
                     optimizer = load_optimizer(optimizer_name, param_combo)
                 elif optimizer_name.lower() == "adam":
                     optimizer = load_optimizer(optimizer_name, param_combo)
                 elif optimizer_name.lower() == "sgd":
+                    optimizer = load_optimizer(optimizer_name, param_combo)
+                elif optimizer_name.lower() == "f-mfac-adam":
                     optimizer = load_optimizer(optimizer_name, param_combo)
                 else:
                     raise UnknownNameError(
@@ -74,8 +76,13 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
                 model = None
                 model = get_model(model_name, n_classes=n_classes, input_shape=input_shape)
 
+                if "mfac" in optimizer_name.lower():
+                    bool_eagerly = True
+                else:
+                    bool_eagerly = False
+
                 model.compile(
-                    optimizer=optimizer, loss=loss, metrics=["accuracy"], run_eagerly=True
+                    optimizer=optimizer, loss=loss, metrics=["accuracy"], run_eagerly=bool_eagerly
                 )
 
                 model.fit(
@@ -89,4 +96,4 @@ def run_experiment(conf_name: Union[str, Path], conf_path: Union[str, Path] = co
 
 
 if __name__ == "__main__":
-    run_experiment("experiment1")
+    run_experiment("experiment2")
