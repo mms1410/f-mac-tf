@@ -1,0 +1,38 @@
+# This file contains configuration parameters for experiment1.
+# Since we have two versions of MFAC we call the MFAC class inheriting from optimizers.Optimizer MFAC.
+# The MFAC optimizer that inherits from some optimizer implemented in optimizers is called F-MFAC-<parent>,
+# where <parent> is the parent class (F because of factory design pattern).
+
+# no logging from hydra, done by callbacks
+defaults:
+  - _self_
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+# actual experiment configuration
+optimizer:
+  SGD:
+    params:
+      learning_rate: 0.001
+    batch_size: 128
+  MFAC:
+    params:
+      m: [100, 512]
+      damp: 1e-7
+      learning_rate: 0.001
+    batch_size: [512, 1024] # [128, 512, 1024]
+  F-MFAC-SGD:
+    params:
+      m: [100, 512]
+      damp: 1e-7
+      learning_rate: 0.001
+    batch_size: [512, 1024] # [128, 512, 1024]
+dataset: cifar10
+model: resnet32
+loss: sparse_categorical_crossentropy
+epochs: 50
+runs: 10
