@@ -1,7 +1,5 @@
-from collections import deque
-
 import tensorflow as tf
-
+from src.utils.helper_functions import deflatten, RowWiseMatrixFifo
 
 class MFAC(tf.keras.optimizers.Optimizer):
     def __init__(
@@ -14,12 +12,12 @@ class MFAC(tf.keras.optimizers.Optimizer):
         clipvalue=None,
         global_clipnorm=None,
         use_ema=False,
-        m=5,
+        m=512,
         damp = 1e-8,
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="SGD-MFAC",
+        name="f-mfac-sgd",
         **kwargs
     ):
         super().__init__(
@@ -38,17 +36,12 @@ class MFAC(tf.keras.optimizers.Optimizer):
         self.momentum = momentum
         self.nesterov = nesterov
         self.damp = damp
-        self.i = 0
         self.m = m
-        self.grad_fifo = MatrixFifo(m)
+        self.grad_fifo = RowWiseMatrixFifo(self.m)
         self.D = None
         self.B = None
         self.G = None
         self.lambd = 1 / damp
-        self.base_grad = None
-        self.scaled_grad = None
-        self.identity_matrix = tf.constant(tf.linalg.eye(7960), dtype=tf.float32)
-        self.test_counter = 0
         if isinstance(momentum, (int, float)) and (
             momentum < 0 or momentum > 1
         ):
@@ -74,10 +67,6 @@ class MFAC(tf.keras.optimizers.Optimizer):
                 )
             )
         self._built = True
-
-         # Initialize self.D and self.B
-        self.D = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
-        self.B = tf.Variable(tf.zeros(shape=(7960, 7960)), trainable=False)
 
     def minimize(self, loss, var_list, tape=None):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
@@ -125,7 +114,6 @@ class MFAC(tf.keras.optimizers.Optimizer):
                 variable.assign_add(-gradient * lr)
 
     def scale_grads(self, grads):
-        print("start grads", grads)
         #Array zum speichern der alten shapes
         original_shapes = []
         #Array für eindimensionalen Gradienten
@@ -136,13 +124,16 @@ class MFAC(tf.keras.optimizers.Optimizer):
           gradient.append(gr)
 
         gradient = tf.concat(gradient, axis = 0)
-        print("Gradient (eindimensional)", gradient)
 
         #Gradienten skalieren
+        print("Counter before call minimize", self.counter)
         self.grad_fifo.append(gradient)
-        if self.grad_fifo.counter == self.m:
+        print("fifo.counter", self.grad_fifo.counter)
+        if self.grad_fifo.counter >= self.m:
+          print("Doing MFAC step")
+          self.G = self.grad_fifo.values
           self.D, self.B = self._setupMatrices()
-          gradient = self._compute_InvMatVec(x=gradient)
+          gradient = self._compute_InvMatVec(x=gradients)
 
         #Array für Rückformattierung
         reconstructed_tensors = []
@@ -161,7 +152,6 @@ class MFAC(tf.keras.optimizers.Optimizer):
             # Aktualisieren des Startindex für den nächsten Tensor
             start_index += num_elements
 
-        print("final_tensor", reconstructed_tensors)
         return reconstructed_tensors
 
     def get_config(self):
@@ -181,33 +171,30 @@ class MFAC(tf.keras.optimizers.Optimizer):
 
     def _setupMatrices(self):
         # init matrices
-        self.G = self.grad_fifo.values
-        self.D.assign(tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G))))
-        self.B.assign(tf.math.scalar_mul(self.damp, self.identity_matrix))
+        D = tf.math.scalar_mul(self.damp, tf.matmul(self.G, tf.transpose(self.G)))
+        B = tf.math.scalar_mul(self.damp, tf.linalg.eye(self.m))
         # Compute D
         for idx in range(1, self.m):
-            denominator = tf.math.pow((self.m + self.D[idx - 1, idx - 1]), -1)
-            test = self.D[idx:, idx:] - denominator * tf.matmul(tf.transpose(self.D[idx - 1:, idx:]), self.D[idx - 1:, idx:])
-            self.D[idx:, idx:].assign(test)
-        self.D = tf.linalg.band_part(self.D, 0, -1)
+            denominator = tf.math.pow((self.m + D[idx - 1, idx - 1]), -1)
+            test = D[idx:, idx:] - denominator * tf.matmul(tf.transpose(D[idx - 1:, idx:]), D[idx - 1:, idx:])
+            D = tf.concat([D[:idx, :], tf.concat([D[idx:, :idx], test], axis=1)], axis=0)
+        D = tf.linalg.band_part(D, 0, -1)
         # Compute B
         for idx in range(1, self.m):
-            denominator = self.m + tf.linalg.diag_part(self.D)[:idx]
-            tmp = tf.math.divide(-self.D[:idx, idx], denominator)
+            denominator = self.m + tf.linalg.diag_part(D)[:idx]
+            tmp = tf.math.divide(-D[:idx, idx], denominator)
             tmp = tf.transpose(tmp)
-            to_assign = tf.linalg.matvec(self.B[:idx, :idx], tmp)
-            self.B[idx, :idx].assign(to_assign)
-        return self.D, self.B
+            to_assign = tf.linalg.matvec(B[:idx, :idx], tmp)
+            B_row = tf.concat([to_assign, B[idx, idx:]], axis=0)
+            B = tf.concat([B[:idx, :], B_row[None, :], B[idx+1:, :]], axis=0)
+        return D, B
 
     def _compute_InvMatVec(self, x):
         """
         Compute \hat{F_{m}}\bm{x} for precomputed D and B
         """
-        self.G = self.grad_fifo.values
-        print("self.g", self.G)
-        q = tf.linalg.matvec(self.G, x, transpose_a=True)  #self.G (Gradient_länge, self.m); x (Gradient_länge, 1)
+        q = tf.linalg.matvec(self.G, x)
         q = tf.math.scalar_mul(self.damp, q)
-        print("q", q)
         q0 = q[0] / (self.m + self.D[0, 0])
         q = tf.concat([[q0], q[1:]], axis=0)
         for idx in range(1, self.m):
@@ -215,11 +202,10 @@ class MFAC(tf.keras.optimizers.Optimizer):
             q = tf.concat([q[:idx], tmp], axis=0)
         denominator =self.m + tf.linalg.diag_part(self.D)
         q = q / denominator
-        tmp = tf.linalg.matvec(self.B, q)
-        print("tmp", tmp)
+        q = tf.reshape(q, [1,self.m])
+        tmp = tf.matmul(q, self.B)
         a = tf.math.scalar_mul(self.damp, x)
-        print("a", a)
-        b = tf.transpose(tf.linalg.matvec(self.G, tmp, transpose_a=True))
-        print("b", b)
-        result = a - b
+        b = tf.transpose(tf.matmul(tmp, self.G))
+        b = tf.reshape(b, a.shape)
+        result = tf.subtract(a, b)
         return result
