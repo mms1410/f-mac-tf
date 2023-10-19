@@ -10,6 +10,8 @@ from pathlib import Path
 import datetime
 import platform
 from typing import Union
+import re
+from datetime import datetime as dt
 
 
 def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
@@ -32,8 +34,8 @@ def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
             tmp["optimizer"] = os.path.basename(folder)
             tmp["experiment"] = os.path.basename(os.path.dirname(folder))
         data = pd.concat([data, tmp])
-        # ToDo: add mean value
-
+    data[["model", "batch_size", "run", "m"]] = data["filename"].apply(split_filename).apply(pd.Series)
+    data[["time_stamp"]] = data["filename"].apply(get_time).apply(pd.Series)
     return data
 
 
@@ -54,8 +56,6 @@ def write_os_info_to_file(output_file: Union[str, Path]) -> None:
         file.write(f"Version: {platform.version()}\n")
         file.write(f"Machine: {platform.machine()}\n")
         file.write(f"Processor: {platform.processor()}\n")
-
-
 
 def set_log_filename_default(optimizer_name, modelname, batchsize, run):
     """
@@ -316,7 +316,7 @@ def write_results_to_plot(csv_file: str, destination_file: str) -> None:
     plt.savefig(destination_file)
 
 
-def get_param_combo_list(params:dict) -> List:
+def get_param_combo_list(params: dict) -> List:
     """Create List of possible param combinations.
 
     Args:
@@ -342,8 +342,57 @@ def get_param_combo_list(params:dict) -> List:
 
     return result_dicts
 
+def split_filename(string:str) -> Tuple[str, str, str, str]:
+    """
+
+    Args:
+        string:
+
+    Returns:
+
+    """
+    # m
+    pattern = r"m-(\d+)"
+    match = re.search(pattern, string)
+    if match:
+        m = match.group(1)
+    else:
+        m = ""
+    # model
+    pattern = r"(\d+)m_(.*?)_batch"
+    match = re.search(pattern, string)
+    model = match.group(2)
+    # batch_size
+    pattern = r"_batch-(\d+)"
+    match = re.search(pattern, string)
+    batch_size = match.group(1)
+    # run
+    pattern = r"_run-(\d+)"
+    match = re.search(pattern, string)
+    run = match.group(1)
+
+    return model, batch_size, run, m
+
+def get_time(string:str):
+    """
+
+    Args:
+        string:
+
+    Returns:
+
+    """
+    pattern = r"^(.*?)(m)"
+    match = re.search(pattern, string)
+    result = match.group(1)
+    date_obj = dt.strptime(result, "%Y-%m-%d:%H:%M")
+    timestamp = date_obj.timestamp()
+    return timestamp
+
+
 if __name__ == "__main__":
+    pd.set_option('display.max_columns', 20)
     project_dir = Path(__file__).resolve().parents[2]
     folder= Path(project_dir, "logs", "experiment1",  "SGD")
     data = get_folder_dataframe(folder)
-    print(data.head())
+    filename = "2023-10-19:13:10m_SGD_resnet20_batch-128_m-100_run-2.csv"

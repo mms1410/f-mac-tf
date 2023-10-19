@@ -1,15 +1,9 @@
 """Function to load dataset and model."""
 
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import tensorflow_hub as hub
 import tensorflow.keras.datasets as mnist
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.datasets import cifar100
-from tensorflow.keras.applications import ResNet101
-from tensorflow.keras.applications import ResNet50
-from keras.applications.mobilenet import MobileNet
-from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
 from src.optimizers.MFAC import Mfac
 from src.optimizers.SGD import MFAC
