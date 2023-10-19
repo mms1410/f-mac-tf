@@ -12,7 +12,7 @@ class SGDMFAC(tf.keras.optimizers.Optimizer):
         clipvalue=None,
         global_clipnorm=None,
         use_ema=False,
-        m=5,
+        m=512,
         damp = 1e-8,
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
