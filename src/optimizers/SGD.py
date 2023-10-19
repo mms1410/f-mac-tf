@@ -70,7 +70,6 @@ class SGDMFAC(tf.keras.optimizers.Optimizer):
 
     def minimize(self, loss, var_list, tape=None):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
-        self.counter = self.counter + 1
 
         if grads_and_vars is not None:
             grads, vars = zip(*grads_and_vars)
