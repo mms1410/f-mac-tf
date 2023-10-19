@@ -17,33 +17,33 @@ hydra:
 optimizer:
   Adam:
     params:
-      learning_rate: 0.0001
+      learning_rate: 0.001
     batch_size: 128
   SGD:
     params:
-      learning_rate: 0.0001
+      learning_rate: 0.001
     batch_size: 128
   MFAC:
     params:
-      m: [100, 512]
+      m: 512
       damp: 1e-6
-      learning_rate: 0.0001
+      learning_rate: 0.001
     batch_size: 512
   F-MFAC-SGD:
     params:
-      m: [100, 512]
+      m: 412
       damp: 1e-6
-      learning_rate: 0.0001
+      learning_rate: 0.001
     batch_size: 512
   F-MFAC-ADAM:
     params:
-      m: [100, 512]
+      m: 512
       damp: 1e-6
-      learning_rate: 0.0001
+      learning_rate: 0.001
     batch_size: 512
 
 dataset: cifar10
 model: resnet20
 loss: sparse_categorical_crossentropy
-epochs: 50
-runs: 5
+epochs: 20
+runs: 3
