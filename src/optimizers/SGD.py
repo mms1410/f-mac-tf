@@ -1,7 +1,7 @@
 import tensorflow as tf
 from src.utils.helper_functions import deflatten, RowWiseMatrixFifo
 
-class SGDMFAC(tf.keras.optimizers.Optimizer):
+class MFAC(tf.keras.optimizers.Optimizer):
     def __init__(
         self,
         learning_rate=0.01,
@@ -17,7 +17,7 @@ class SGDMFAC(tf.keras.optimizers.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="SGDMFAC",
+        name="f-mfac-sgd",
         **kwargs
     ):
         super().__init__(
