@@ -28,21 +28,21 @@ optimizer:
       m: [100, 512]
       damp: 1e-6
       learning_rate: 0.0001
-    batch_size: [512, 1024]
+    batch_size: 512
   F-MFAC-SGD:
     params:
       m: [100, 512]
       damp: 1e-6
       learning_rate: 0.0001
-    batch_size: [512, 1024]
+    batch_size: 512
   F-MFAC-ADAM:
     params:
       m: [100, 512]
       damp: 1e-6
       learning_rate: 0.0001
-    batch_size: [512, 1024]
+    batch_size: 512
 dataset: cifar10
 model: resnet32
 loss: sparse_categorical_crossentropy
 epochs: 50
-runs: 10
+runs: 5
