@@ -58,7 +58,6 @@ MFAC:
     damp: 1e-6 
     learning_rate: 0.001
   batch_size:128
-
 ```
 
 This file also defines which data set, which model, which loss, how many epochs and how many runs are to be executed.
