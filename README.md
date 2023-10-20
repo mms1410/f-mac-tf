@@ -43,7 +43,7 @@ An `experiment.yaml` file, in which the model configurations, e.g. how many grad
 
 ## Optimization:
 
-Before running the `run_experiment.py`script, all packages from the requirements.txt must be installed.
+Before running the `run_experiment.py` script, all packages from the requirements.txt must be installed.
 
 ```
 pip install -r requirements.txt
