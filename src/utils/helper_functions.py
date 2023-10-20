@@ -9,36 +9,17 @@ from pathlib import Path
 from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
 import tensorflow as tf
 from omegaconf.listconfig import ListConfig
 
 
-def get_folder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
-    """Aggregate logged metrics form multiple runs.
-
-    This function create a single dataframe for logged data where a new column
-    is created with filename.
-
-    Args:
-        folder: path to folder with csv files.
-
-    Returns:
-        pandas dataframe of logged data.
-    """
-    data = pd.DataFrame()
-    for filename in os.listdir(folder):
-        if filename.endswith(".csv"):
-            tmp = pd.read_csv(Path(folder, filename))
-            tmp["filename"] = filename
-            tmp["optimizer"] = os.path.basename(folder)
-            tmp["experiment"] = os.path.basename(os.path.dirname(folder))
-        data = pd.concat([data, tmp])
-    data[["model", "batch_size", "run", "m"]] = (
-        data["filename"].apply(split_filename).apply(pd.Series)
-    )
-    data[["time_stamp"]] = data["filename"].apply(get_time).apply(pd.Series)
-    return data
+def remove_optimizer_name(name: str, optimizer_name: str) -> str:
+    """ """
+    result = name.replace(optimizer_name + "_", "")
+    return result
 
 
 def write_os_info_to_file(output_file: Union[str, Path]) -> None:
@@ -288,24 +269,24 @@ class RowWiseMatrixFifo:
         self.values = None
 
 
-def deflatten(
-    flattened_grads: tf.Variable, shapes_grads: list[tf.shape]
-) -> tuple[tf.Variable]:  # noqa E501
-    """Deflatten a tensorflow vector.
-
-    Args:
-        flattened_grads: flattened gradients.
-        shape_grads: shape in which to reshape
-
-    Return:
-        tuple of tf.Variables
-    """
-    shapes_total = list(map(lambda x: tf.reduce_prod(x), shapes_grads))
-    intermediate = tf.split(flattened_grads, shapes_total, axis=0)  # noqa E501
-    deflattened = [
-        tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)
-    ]  # noqa E501
-    return deflattened
+# def deflatten(
+#    flattened_grads: tf.Variable, shapes_grads: List[tf.shape]
+# ) -> tuple[tf.Variable]:  # noqa E501
+#    """Deflatten a tensorflow vector.#
+#
+#    Args:
+#        flattened_grads: flattened gradients.
+#        shape_grads: shape in which to reshape#
+#
+#    Return:
+#        tuple of tf.Variables
+#    """
+#    shapes_total = list(map(lambda x: tf.reduce_prod(x), shapes_grads))
+#    intermediate = tf.split(flattened_grads, shapes_total, axis=0)  # noqa E501
+#    deflattened = [
+#        tf.reshape(grad, shape) for grad, shape in zip(intermediate, shapes_grads)
+#    ]  # noqa E501
+#    return deflattened
 
 
 def write_results_to_plot(csv_file: str, destination_file: str) -> None:
@@ -418,9 +399,111 @@ def get_time(string: str):
     return timestamp
 
 
+def get_optimzerfolder_dataframe(folder: Union[str, Path]) -> pd.DataFrame:
+    """Aggregate logged metrics form multiple runs from an optimizer folder.
+
+    This function create a single dataframe for logged data where a new column
+    is created with filename.
+
+    Args:
+        folder: path to folder with csv files.
+
+    Returns:
+        pandas dataframe of logged data.
+    """
+    data = pd.DataFrame()
+    for filename in os.listdir(folder):
+        if str(filename).endswith(".csv"):
+            tmp = pd.read_csv(Path(folder, filename))
+            tmp["filename"] = filename
+            tmp["optimizer"] = os.path.basename(folder)
+            tmp["experiment"] = os.path.basename(os.path.dirname(folder))
+            data = pd.concat([data, tmp])
+    data[["model", "batch_size", "run", "m"]] = (
+        data["filename"].apply(split_filename).apply(pd.Series)
+    )
+    return data
+
+
+def add_mean_values(data: pd.DataFrame) -> pd.DataFrame:
+    """ """
+    mean_loss = data.groupby(["optimizer", "epoch", "batch_size", "model", "experiment"])[
+        "loss"
+    ].transform(np.mean)
+    mean_val_loss = data.groupby(["optimizer", "epoch", "batch_size", "model", "experiment"])[
+        "val_loss"
+    ].transform(np.mean)
+    mean_accuracy = data.groupby(["optimizer", "epoch", "batch_size", "model", "experiment"])[
+        "accuracy"
+    ].transform(np.mean)
+    mean_val_accuracy = data.groupby(["optimizer", "epoch", "batch_size", "model", "experiment"])[
+        "val_accuracy"
+    ].transform(np.mean)
+    data["mean_loss"] = mean_loss
+    data["mean_val_loss"] = mean_val_loss
+    data["mean_accuracy"] = mean_accuracy
+    data["mean_val_accuracy"] = mean_val_accuracy
+    return data
+
+
+def write_experiment_plot(data: pd.DataFrame, savename: Union[str, Path], experiment_name: Union[str, Path]) -> None:
+    """ """
+    # data = data[(data['run'] < 1)]  # duplicates due to aggregation
+    data["epoch"] = data["epoch"] + 1
+    data["epoch"] = data["epoch"].astype(int)
+
+    # Optimierer eindeutig identifizieren
+    optimizers = data["optimizer"].unique()
+    # Plot-Bereich erstellen
+    fig, ax = plt.subplots(4, 1, figsize=(15, 20))
+    # Für jeden Optimierer
+    for optimizer in optimizers:
+        # Daten für diesen Optimierer auswählen
+        optimizer_data = data[data["optimizer"] == optimizer]
+        # Trainings-Loss Plot
+        ax[0].plot(optimizer_data["epoch"], optimizer_data["mean_loss"], label=optimizer)
+        # Trainings-Accuracy Plot
+        ax[1].plot(optimizer_data["epoch"], optimizer_data["mean_accuracy"], label=optimizer)
+        # Validierungs-Loss Plot
+        ax[2].plot(optimizer_data["epoch"], optimizer_data["mean_val_loss"], label=optimizer)
+        # Validierungs-Accuracy Plot
+        ax[3].plot(optimizer_data["epoch"], optimizer_data["mean_val_accuracy"], label=optimizer)
+
+    # Beschriftung und Legenden
+    ax[0].set_title("Metrics averaged over runs for each optimizer")
+    ax[0].set_xlabel("Epoch")
+    ax[0].set_ylabel("Train Mean Loss")
+    ax[0].legend()
+    ax[1].set_title("Train Mean Accuracy Per Epoch for Different Optimizers")
+    ax[1].set_xlabel("Epoch")
+    ax[1].set_ylabel("Train Mean Accuracy")
+    ax[1].legend()
+    ax[2].set_title("Validation Loss Per Epoch for Different Optimizers")
+    ax[2].set_xlabel("Epoch")
+    ax[2].set_ylabel("Validation Loss")
+    ax[2].legend()
+    ax[3].set_title("Validation Accuracy Per Epoch for Different Optimizers")
+    ax[3].set_xlabel("Epoch")
+    ax[3].set_ylabel("Validation Accuracy")
+    ax[3].legend()
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(savename)
+
+
 if __name__ == "__main__":
-    pd.set_option("display.max_columns", 20)
     project_dir = Path(__file__).resolve().parents[2]
-    folder = Path(project_dir, "logs", "experiment1", "SGD")
-    data = get_folder_dataframe(folder)
-    filename = "2023-10-19:13:10m_SGD_resnet20_batch-128_m-100_run-2.csv"
+    grand_data = pd.DataFrame()
+    experiment_name = "experiment1"
+    folder = Path(project_dir, "logs", "experiment1")
+    experiment_data = pd.DataFrame()
+    for optimizer_folder in folder.iterdir():
+        data = get_optimzerfolder_dataframe(optimizer_folder)
+        experiment_data = pd.concat([experiment_data, data])
+    experiment_data["experiment"] = experiment_name
+    experiment_data = add_mean_values(experiment_data)
+    experiment_data["run"] = experiment_data["run"].astype(int)
+    experiment_data = experiment_data[
+        experiment_data["run"] == 0
+    ]  # duplicates due to aggregation over runs
+    write_experiment_plot(experiment_data, folder, experiment_name)
