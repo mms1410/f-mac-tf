@@ -12,6 +12,14 @@ diag_part = tf.linalg.diag_part
 
 class Mfac(tf.keras.optimizers.SGD):
     def __init__(self, m, damp, name="MFAC", **kwargs):
+        """Initialize the optimizer and all variables.
+
+        Args:
+            m: int, number of gradients to store
+            damp: float, damping factor
+            name: string, name of the optimizer
+            **kwargs: for backwards compatibility
+        """
         super(Mfac, self).__init__(name=name)
         self.m = m
         self.damp = damp
@@ -33,6 +41,20 @@ class Mfac(tf.keras.optimizers.SGD):
         return super().compute_gradients(loss, var_list, tape)
 
     def minimize(self, loss, var_list, tape=None):
+        """Minimize the loss function.
+
+        Compute the Gradients for each variable in var_list. If the Fifo-Que is full,
+        the gradients are scaled using the MFAC algorithm and be applied to the variables.
+
+        Args:
+            loss: loss function
+            var_list: list of variables to compute gradients for
+            tape: gradient tape for automatic differentiation
+
+        Returns:
+            None
+
+        """
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
         gradients_list = [gradient for gradient, _ in grads_and_vars]
         var_list = [var for _, var in grads_and_vars]
@@ -55,7 +77,12 @@ class Mfac(tf.keras.optimizers.SGD):
         self.apply_gradients(grads_and_vars)
 
     def _setupMatrices(self):
-        """Implements Algorithm1 from paper."""
+        """Implements Algorithm1 from paper.
+        
+        Here the matrices B and D are set up and calculated according 
+        to Algorithm 1 so that they can be used for the function _compute_InvMatVec.
+        
+        """
         self.D = matmul(self.GradFifo.values, self.GradFifo.values, transpose_b=True)
         self.D = tf.Variable(scalmul(self.damp, self.D))
         self.B = tf.eye(self.m, self.m)

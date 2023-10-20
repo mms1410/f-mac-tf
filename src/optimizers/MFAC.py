@@ -225,7 +225,12 @@ class MFAC(tf.keras.optimizers.Optimizer):
         return config
 
     def _setupMatrices(self):
-        """Implements Algorithm1 from paper."""
+        """Implements Algorithm1 from paper.
+        
+        Here the matrices B and D are set up and calculated according 
+        to Algorithm 1 so that they can be used for the function _compute_InvMatVec.
+        
+        """
         self.D = matmul(self.GradFifo.values, self.GradFifo.values, transpose_b=True)
         self.D = tf.Variable(scalmul(self.damp, self.D))
         self.B = tf.eye(self.m, self.m)
