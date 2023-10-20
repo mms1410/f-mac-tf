@@ -38,7 +38,7 @@ All of these optimisers include the implementation of the dynamic algorithm
 
 A run_experiments.py scricpt for running five Optimizers (SGD, Adam, SGD-MFAC (scratch), SGD-MFAC (inherist from SGD) and ADAM-MFAC) on the cifar10 Dataset and on a ResNet (20 or 32) Model. The logs are saved in the logs folder
 
-An experiment.yaml file, in which the model configurations, e.g. how many gradients one uses for M-FAC optimisation, are specified. In addition, the model, the number of epochs and the number of runs to be carried out are defined here.
+An experiment.yaml file, in which the model configurations, e.g. how many gradients used for M-FAC optimisation, are specified. In addition, the model, the number of epochs and the number of runs to be carried out are defined here.
 
 ## 💪 Getting Started
 
