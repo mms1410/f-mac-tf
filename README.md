@@ -27,6 +27,11 @@ Implementation of F-MAC algorithm of Frantar et. al. (2021) in Tensorflow.
 We use absolute imports from the project home directory (e.g. here where the README is located).
 For this the project home directory must be added to the module search path. This can for example be achieved by adding a '.env' file at project home level containing 'export PYTHONPATH="$PYTHONPATH:$PWD"'.
 
+## Status:
+
+Due to runtime issues, we used a higher learning_rate and fewer epochs. We will update the results again as soon as all runs have been completed.
+<br>Also note that regarding configuration for parameters lists could be stated but due to time constraint this was not considerd. Further note that we did run our current experiments on CPU only (see os secification in log folders) whereas the original paper used GPU.
+
 ## M-FAC:
 
 This repository contains efficient reference implementations of the dynamic M-FAC algorithms based on SGD and Adam Optimizers in TensorFlow, introduced in the paper "M-FAC: Efficient Matrix-Free Approximations of Second-Order Information" to be published at NeurIPS 2021, plus some sample code demonstrating their use in optimization. In addition, the results are compared in plots with the results of a normal Adam and SGD optimiser.
