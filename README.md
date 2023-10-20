@@ -30,6 +30,7 @@ For this the project home directory must be added to the module search path. Thi
 ## Status:
 
 Due to runtime issues, we used a higher learning_rate and fewer epochs. We will update the results again as soon as all runs have been completed.
+<br>Also note that regarding configuration for parameters lists could be stated but due to time constraint this was not considerd. Further note that we did run our current experiments on CPU only (see os secification in log folders) whereas the original paper used GPU.
 
 ## M-FAC:
 
