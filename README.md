@@ -27,6 +27,19 @@ Implementation of F-MAC algorithm of Frantar et. al. (2021) in Tensorflow.
 We use absolute imports from the project home directory (e.g. here where the README is located).
 For this the project home directory must be added to the module search path. This can for example be achieved by adding a '.env' file at project home level containing 'export PYTHONPATH="$PYTHONPATH:$PWD"'.
 
+## Optimization:
+
+This repository contains efficient reference implementations of the dynamic M-FAC algorithms based on SGD and Adam Optimizers, introduced in the paper "M-FAC: Efficient Matrix-Free Approximations of Second-Order Information" to be published at NeurIPS 2021, plus some sample code demonstrating their use in optimization. In addition, the results are compared in plots with the results of a normal Adam and SGD optimiser.
+
+This repository contains the follwowing:
+
+An efficient Implementation of an M-FAC Optimizer based on SGD from Scratch, an efficient Implementation of an M-FAC Optimizer which inherits from the SGD Optimizer and an efficient Implementation of an M-FAC Optimizer which inherits from the ADAM Optimizer.
+All of these optimisers include the implementation of the dynamic algorithm
+
+A run_experiments.py scricpt for running five Optimizers (SGD, Adam, SGD-MFAC (scratch), SGD-MFAC (inherist from SGD) and ADAM-MFAC) on the cifar10 Dataset and on a ResNet (20 or 32) Model. The logs are saved in the logs folder
+
+An experiment.yaml file, in which the model configurations, e.g. how many gradients one uses for M-FAC optimisation, are specified. In addition, the model, the number of epochs and the number of runs to be carried out are defined here.
+
 ## 💪 Getting Started
 
 Each experiment must be defined in a configuration in yaml syntax (which is read using ['hydra'](https://hydra.cc/docs/intro/)).
