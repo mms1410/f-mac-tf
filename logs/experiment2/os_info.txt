@@ -1,0 +1,7 @@
+Operating System Information:
+System: Darwin
+Node Name: Adrians-MBP.fritz.box
+Release: 22.6.0
+Version: Darwin Kernel Version 22.6.0: Fri Sep 15 13:39:52 PDT 2023; root:xnu-8796.141.3.700.8~1/RELEASE_X86_64
+Machine: x86_64
+Processor: i386
