@@ -78,10 +78,10 @@ By calling `run_experiment(<configuration name>)` in 'run_experiments.py' one or
 For each experiment and optimizer a dedicated folder will be created in 'logs' containing csv files of tracked metrics for each run and parameter configuration.
 
 ## Results
-Run 1
+**Experiment 1**
 ![Ergebnisse Lauf 1](logs/experiment1.png)
 
-Run 2
+**Experiment 2**
 ![Ergebnisse Lauf 2](logs/experiment2.png)
 
 ## 👋 Attribution
