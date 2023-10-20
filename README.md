@@ -77,6 +77,13 @@ Each experiment must be defined in a configuration in yaml syntax (which is read
 By calling `run_experiment(<configuration name>)` in 'run_experiments.py' one or multiple experiments can be run.
 For each experiment and optimizer a dedicated folder will be created in 'logs' containing csv files of tracked metrics for each run and parameter configuration.
 
+## Results
+**Experiment 1**
+![Ergebnisse Lauf 1](logs/experiment1.png)
+
+**Experiment 2**
+![Ergebnisse Lauf 2](logs/experiment2.png)
+
 ## 👋 Attribution
 The idea of our optimizer(s) are not our own but based on the paper by Frantar et. al. 2021 [1].
 Special thanks to Prof. Dr. David Rügamer for supervising us.
